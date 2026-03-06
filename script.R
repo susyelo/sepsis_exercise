@@ -78,13 +78,8 @@ ggplot(seps_long, aes(x = reorder(region, value), y = value, fill = type_sejour_
 regions_sf <- read_REG_data()
 
 ## Fixing names mismatched! 
-seps_dat$region_name <- stri_trans_general(
-  stri_enc_toutf8(seps_dat$region_name),
-  "Latin-ASCII"
-)
-
 # Align formatting to your shapefile style + fix the truncation
-seps_dat$region_name <- toupper(seps_dat$region_name)
+seps_dat$region_name <- harmonise_region(seps_dat$region_name)
 seps_dat$region_name <- sub("PROVENCE-ALPES-COTE D'AZU$", "PROVENCE-ALPES-COTE D'AZUR", seps_dat$region_name)
 
 regions_joined <- 

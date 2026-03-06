@@ -4,6 +4,21 @@ library(ggplot2)
 library(patchwork)
 
 
+harmonise_region <- function(x) {
+  x <- x %>%
+    toupper() %>% 
+    str_replace_all("\n", " ") %>%
+    str_squish() %>%
+    str_trim()
+  
+  stri_trans_general(
+    stri_enc_toutf8(x),
+    "Latin-ASCII"
+  )
+  
+}
+
+
 plot_one_var <- function(data, 
                          var_name, 
                          var_label,
@@ -39,6 +54,17 @@ read_REG_data <-function(pattern = "\\.shp$", folder = "data_ign", subfolder = "
   regions_sf
 }
 
+
+read_COMM_data <-function(pattern = "\\.shp$", folder = "data_ign", subfolder = "admin_express_cog"){
+  
+  out_dir <- file.path(folder, subfolder)
+  shp_files <- list.files(out_dir, pattern = pattern, recursive = TRUE, full.names = TRUE)
+  com_shp <- shp_files[str_detect(toupper(shp_files), "CHFLIEU_COMMUNE")][1]
+  
+  com_shp <- st_read(com_shp, quiet = TRUE)
+  
+  com_shp
+}
 
 # Map regional variables France -------------------------------------------
 download_FRA_REG <-function(page_url = "https://geoservices.ign.fr/telechargement-api/ADMIN-EXPRESS-COG?page=1"){

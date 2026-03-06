@@ -10,7 +10,6 @@ library(curl)
 library(stringi)
 library(patchwork)
 
-
 # functions ---------------------------------------------------------------
 source("fun.R")
 
@@ -65,7 +64,7 @@ seps_long <-
   seps_dat %>%
   pivot_longer(all_of(vars), names_to = "variable", values_to = "value")
 
-ggplot(seps_long, aes(x = region, y = value, fill = type_sejour_sepsis)) +
+ggplot(seps_long, aes(x = reorder(region, value), y = value, fill = type_sejour_sepsis)) +
   geom_col(position = "dodge", width = 0.75) +
   coord_flip() +
   facet_wrap(~ variable, scales = "free") +
@@ -74,7 +73,9 @@ ggplot(seps_long, aes(x = region, y = value, fill = type_sejour_sepsis)) +
 
 
 ### Download FRANCE regions shapefiles 
-regions_sf <- download_FRA_REG(page_url = "https://geoservices.ign.fr/telechargement-api/ADMIN-EXPRESS-COG?page=1")
+#regions_sf <- download_FRA_REG(page_url = "https://geoservices.ign.fr/telechargement-api/ADMIN-EXPRESS-COG?page=1")
+
+regions_sf <- read_REG_data()
 
 ## Fixing names mismatched! 
 seps_dat$region_name <- stri_trans_general(

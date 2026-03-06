@@ -12,13 +12,31 @@ plot_one_var <- function(data,
   
   ggplot(
     data,
-    aes(x = .data[[region_col]], y = .data[[var_name]], fill = .data[[group_col]])
+    aes(x = reorder(.data[[region_col]], .data[[var_name]]),
+        y = .data[[var_name]], 
+        fill = .data[[group_col]])
   ) +
     geom_col(position = "dodge", width = 0.75) +
     coord_flip() +
     labs(x = NULL, y = var_label, fill = NULL) +
     theme_minimal(base_size = 12) +
     theme(panel.grid.minor = element_blank())
+}
+
+
+## read regions spatial data (shapefiles)
+
+
+# Find the REGION shapefile inside extracted folders
+read_REG_data <-function(pattern = "\\.shp$", folder = "data_ign", subfolder = "admin_express_cog"){
+  
+  out_dir <- file.path(folder, subfolder)
+  shp_files <- list.files(out_dir, pattern = pattern, recursive = TRUE, full.names = TRUE)
+  region_shp <- shp_files[str_detect(toupper(shp_files), "REGION")][1]
+  
+  regions_sf <- st_read(region_shp, quiet = TRUE)
+  
+  regions_sf
 }
 
 
@@ -55,12 +73,7 @@ download_FRA_REG <-function(page_url = "https://geoservices.ign.fr/telechargemen
   
   # ---- D) Read the REGION layer ----
   # Find the REGION shapefile inside extracted folders
-  shp_files <- list.files(out_dir, pattern = "\\.shp$", recursive = TRUE, full.names = TRUE)
-  region_shp <- shp_files[str_detect(toupper(shp_files), "REGION")][1]
-  
-  regions_sf <- st_read(region_shp, quiet = TRUE)
-  
-  regions_sf
+  read_REG_data()
 }
 
 
@@ -87,7 +100,8 @@ plot_fr_var_insets <- function(sf_data, var, label,
   
   # Transform to avoid domination for counts/rates
   v <- dat[[var]]
-  v_plot <- if (var %in% c("nb_sejours", "tx_sejours_sepsis_100k")) log1p(v) else v
+  v_plot = v
+  #v_plot <- if (var %in% c("nb_sejours", "tx_sejours_sepsis_100k")) log1p(v) else v
   dat <- dat %>% mutate(.vplot = v_plot)
   
   # Quantile classes (robust, map-friendly)
@@ -155,14 +169,14 @@ plot_maps_var <- function(sf_data,
   
   p1  <- plot_fr_var_insets(
     sf_data, 
-    "tx_sejours_sepsis_100k", 
-    "Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants",
+    var, 
+    label_var,
     group_level = g1)
   
   p2 <- plot_fr_var_insets(
     sf_data, 
-    "tx_sejours_sepsis_100k", 
-    "Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants",
+    var, 
+    label_var,
     group_level = g2
   )
   

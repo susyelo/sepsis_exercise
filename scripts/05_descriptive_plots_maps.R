@@ -52,3 +52,28 @@ plot_maps_var(regions_joined,
               label_var = "Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants", 
               shared_legend = FALSE)
 
+
+## map INSEE variables
+insee_all <- readRDS("data/derived/04_all_insee_dat.RDS")
+
+regions_unique <- 
+  regions_joined %>%
+  group_by(NOM_M, INSEE_REG) %>%
+  summarise(geometry = sf::st_union(geometry), .groups = "drop")
+
+insee_spatial <- 
+regions_unique %>% 
+  mutate(code_region = INSEE_REG) %>% 
+  left_join(insee_all, by = "code_region")
+
+plot_fr_var_insets(insee_spatial, 
+                   var = "pop_non_scol15", 
+                   label = "population non scolarisée", 
+                   group_level = NULL)
+
+
+plot_fr_var_insets(insee_spatial, 
+                   var = "niveau_vie_median_annuel", 
+                   label = "Poverty", 
+                   group_level = NULL)
+

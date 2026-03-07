@@ -1,5 +1,7 @@
 *.xlsx
 .Rproj.user
 .Rhistory
-data_ign/
-INSEE/
+data_raw/
+data/
+/.quarto/
+**/*.quarto_ipynb

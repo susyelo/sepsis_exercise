@@ -68,35 +68,58 @@ pop_data <-
 ### 3. Educational data
 file_path <- "./INSEE/TD_FOR2_2021.xlsx"
 
+## Since there are some communes that were old and fusion with others I will sum everything along the commune code number
 reg_data <- 
   read_excel(file_path, sheet = "COM", skip = 10) %>%
   janitor::clean_names() %>% 
   mutate(
-    CODGEO = str_pad(as.character(codgeo), width = 5, side = "left", pad = "0")
+    COM = str_pad(as.character(codgeo), width = 5, side = "left", pad = "0")
+  ) 
+  
+### using CODGEO as the join reference
+reg_data_COM <- 
+  reg_data %>% 
+  group_by(COM) %>%
+  summarise(
+    across(where(is.numeric), ~ sum(.x, na.rm = TRUE)),
+    .groups = "drop"
   )
 
 
-## Commune and regions classifications
-com_reg <- read.csv("./INSEE/20230823-communes-departement-region.csv")
-com_reg <-
-  com_reg %>% 
-  mutate(
-    CODGEO = str_pad(as.character(code_commune_INSEE), width = 5, side = "left", pad = "0")
-  ) %>% 
-  select(CODGEO, nom_commune, code_region, nom_region)
 
+## Commune and regions classifications
+
+com_reg_tmp <-   read.csv("./INSEE/v_commune_2025.csv") 
+
+com_reg <- 
+  read.csv("./INSEE/v_commune_2025.csv") %>% 
+  filter(!is.na(REG)) %>% 
+  distinct(COM, REG)
+
+reg_info <- 
+  read.csv("./INSEE/v_region_2025.csv") %>% 
+  distinct(REG,  REG_NAME = NCC)
 
 ## join data 
 edu_with_region <- 
   reg_data %>%
-  left_join(com_reg, by = "CODGEO")
+  left_join(com_reg, by = "COM") %>% 
+  left_join(reg_info, by = "REG")
 
-tmp <- edu_with_region %>% select(CODGEO, libgeo, ageq65015_dipl_19a_sexe1, nom_commune, code_region, nom_region)
+
+
+### All of these communes did not have information about the regions classification, either because they are not longer a commune or because the code reported in the data table does not correspond to the commune region data
+unmatched_communes <- 
+  edu_with_region %>%
+  filter(is.na(REG_NAME))
+
+n_distinct(unmatched_communes$codgeo)
+
 
 ## sum data 
 edu_region <- 
   edu_with_region %>%
-  group_by(code_region, nom_region) %>%
+  group_by(REG, REG_NAME) %>%
   summarise(
     across(where(is.numeric), ~ sum(.x, na.rm = TRUE)),
     n_communes = n(),
@@ -104,9 +127,3 @@ edu_region <-
   )
 
 
-unmatched_communes <- 
-  edu_with_region %>%
-  filter(is.na(nom_region)) %>%
-  select(codgeo, libgeo)
-
-unmatched_communes

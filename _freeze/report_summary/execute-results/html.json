@@ -1,0 +1,21 @@
+{
+  "hash": "11e2842718ea5a6c54f62f8bb4fdf105",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"Regional analysis of sepsis hospitalisations in France\"\nauthor: \"Susy Echeverria Londono\"\ndate: today\nformat:\n  html:\n    toc: true\n    toc-depth: 2\n    number-sections: true\n    theme: cosmo\n    code-fold: false\nexecute:\n  echo: true\n  warning: false\n  message: false\n---\n\n\n\n\n\n\n## Sepsis incidence\n### 1. Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants\n\n::: {.cell}\n::: {.cell-output-display}\n![Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants](report_summary_files/figure-html/unnamed-chunk-2-1.png){width=960}\n:::\n:::\n\n\n### 2. pourcentage de décès \nImportant nuance\n\nBecause the data are based on hospital stays rather than unique patients, the indicator reflects:\n\nmortality per hospitalization episode, not mortality per patient. = l’âge moyen des patients hospitalisés pour sepsis dans cette région, calculé à partir de l’ensemble des séjours hospitaliers enregistrés.\n\nLe pourcentage de décès (pct_deces) correspond à la proportion de séjours hospitaliers pour sepsis qui se terminent par un décès. Il s’agit donc d’un indicateur de mortalité hospitalière parmi les hospitalisations pour sepsis.\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n![Mortalité hospitalière des séjours pour sepsis (%)](report_summary_files/figure-html/unnamed-chunk-3-1.png){width=960}\n:::\n:::\n\n\n### 3. Durée moyenne de séjour (DMS)\n\nDurée moyenne de séjour (DMS) is useful to interpret regional differences in sepsis burden and severity.\n\nSo DMS helps you understand whether a high number of sepsis stays reflects: many relatively short admissions, or fewer but more severe and resource-intensive admissions.\n\nSepsis with longer average stays may indicate: more severe infections, complications, ICU care, \nslower recovery.\n\nSo if a region has both: high sepsis rate, and long DMS this may suggest a heavier clinical burden, not just more admissions.\n\nDMS complements incidence by showing intensity of care use.\n\n\n::: {.cell}\n::: {.cell-output-display}\n![Durée moyenne de séjour (DMS)](report_summary_files/figure-html/unnamed-chunk-4-1.png){width=960}\n:::\n:::\n\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n![âge moyen des patients hospitalisés](report_summary_files/figure-html/unnamed-chunk-5-1.png){width=960}\n:::\n:::\n\n\n## INSEE variables\n## 1.  Niveau de vie et pauvreté par région\n\n\n\n\n",
+    "supporting": [
+      "report_summary_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {
+      "include-in-header": [
+        "<link href=\"report_summary_files/libs/pagedtable-1.1/css/pagedtable.css\" rel=\"stylesheet\" />\n<script src=\"report_summary_files/libs/pagedtable-1.1/js/pagedtable.js\"></script>\n"
+      ]
+    },
+    "engineDependencies": {},
+    "preserve": {},
+    "postProcess": true
+  }
+}

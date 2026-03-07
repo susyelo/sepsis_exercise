@@ -65,32 +65,36 @@ pop_data <-
   filter(region_name != "FRANCE METROPOLITAINE") %>% 
   filter(region_name != "FRANCE") 
 
+
+
 ### 3. Educational data
 file_path <- "./INSEE/TD_FOR2_2021.xlsx"
 
 ## Since there are some communes that were old and fusion with others I will sum everything along the commune code number
-reg_data <- 
+edu_data <- 
   read_excel(file_path, sheet = "COM", skip = 10) %>%
   janitor::clean_names() %>% 
   mutate(
     COM = str_pad(as.character(codgeo), width = 5, side = "left", pad = "0")
   ) 
+
+## first get the total number of population non scholarisee per commune
+edu_data_COM <- 
+  edu_data %>% 
+  mutate(total_pop15plus = rowSums(across(-c(codgeo, COM, libgeo)), na.rm = TRUE)) %>% 
+  select(-contains("ageq"))
+
   
 ### using CODGEO as the join reference
-reg_data_COM <- 
-  reg_data %>% 
+edu_data_COM <- 
+  edu_data %>% 
   group_by(COM) %>%
   summarise(
     across(where(is.numeric), ~ sum(.x, na.rm = TRUE)),
     .groups = "drop"
   )
 
-
-
 ## Commune and regions classifications
-
-com_reg_tmp <-   read.csv("./INSEE/v_commune_2025.csv") 
-
 com_reg <- 
   read.csv("./INSEE/v_commune_2025.csv") %>% 
   filter(!is.na(REG)) %>% 
@@ -102,11 +106,9 @@ reg_info <-
 
 ## join data 
 edu_with_region <- 
-  reg_data %>%
+  edu_data_COM %>%
   left_join(com_reg, by = "COM") %>% 
   left_join(reg_info, by = "REG")
-
-
 
 ### All of these communes did not have information about the regions classification, either because they are not longer a commune or because the code reported in the data table does not correspond to the commune region data
 unmatched_communes <- 
@@ -114,7 +116,6 @@ unmatched_communes <-
   filter(is.na(REG_NAME))
 
 n_distinct(unmatched_communes$codgeo)
-
 
 ## sum data 
 edu_region <- 

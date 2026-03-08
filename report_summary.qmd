@@ -29,15 +29,17 @@ library(patchwork)
 theme_set(theme_minimal(base_size = 12))
 ```
 
-
 ```{r}
 #| include: false
 source("./R/fun.R")
 regions_joined <- readRDS("./data/derived/01_sepsis_spatial.RDS")
 ```
 
-## Sepsis incidence
+
+## Spatial description of sepsis
+
 ### 1. Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants
+
 ```{r}
 #| echo: false
 #| fig-cap: Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants
@@ -51,7 +53,38 @@ plot_maps_var(regions_joined,
 
 ```
 
-### 2. pourcentage de décès 
+Variable	Interpretation
+Sepsis sans choc	Incidence of diagnosed sepsis
+Septic shock	Severe progression / hospital severity
+Combined	Total burden of sepsis hospitalizations
+
+Reasoning:
+A region with high sepsis but low shock, suggests earlier detection or better management. Region that shows lower incidence but higher shock, suggests delayed diagnosis or different healthcare access.
+
+
+```{r}
+#| echo: false
+#| fig-cap: Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants
+#| fig-height: 6
+#| fig-width: 10
+
+
+## summ over the types of sepsis to get total sepsis incidence
+all_sepsis <- 
+  regions_joined %>%
+  group_by(NOM_M) %>%
+  summarise(tx_sejours_sepsis_100k = sum(tx_sejours_sepsis_100k, na.rm = TRUE))
+
+plot_fr_var_insets(all_sepsis, 
+                   var = "tx_sejours_sepsis_100k", 
+                   label = "Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants", 
+                   group_level = NULL)
+
+```
+
+
+### 2. pourcentage de décès
+
 Important nuance
 
 Because the data are based on hospital stays rather than unique patients, the indicator reflects:
@@ -59,7 +92,6 @@ Because the data are based on hospital stays rather than unique patients, the in
 mortality per hospitalization episode, not mortality per patient. = l’âge moyen des patients hospitalisés pour sepsis dans cette région, calculé à partir de l’ensemble des séjours hospitaliers enregistrés.
 
 Le pourcentage de décès (pct_deces) correspond à la proportion de séjours hospitaliers pour sepsis qui se terminent par un décès. Il s’agit donc d’un indicateur de mortalité hospitalière parmi les hospitalisations pour sepsis.
-
 
 ```{r}
 #| echo: false
@@ -80,8 +112,7 @@ Durée moyenne de séjour (DMS) is useful to interpret regional differences in s
 
 So DMS helps you understand whether a high number of sepsis stays reflects: many relatively short admissions, or fewer but more severe and resource-intensive admissions.
 
-Sepsis with longer average stays may indicate: more severe infections, complications, ICU care, 
-slower recovery.
+Sepsis with longer average stays may indicate: more severe infections, complications, ICU care, slower recovery.
 
 So if a region has both: high sepsis rate, and long DMS this may suggest a heavier clinical burden, not just more admissions.
 
@@ -100,7 +131,6 @@ plot_maps_var(regions_joined,
 
 ```
 
-
 ```{r}
 #| echo: false
 #| fig-cap: âge moyen des patients hospitalisés
@@ -114,9 +144,45 @@ plot_maps_var(regions_joined,
 
 ```
 
-## INSEE variables
-## 1.  Niveau de vie et pauvreté par région
+
+## Association between sepsis incidence and INSEE variable
+
+The exercise was implemented using three sepsis outcomes, analysed separately and in aggregate as requested. Because the final question specifically concerns homogeneous regional profiles based on septic shock rates and territorial indicators, clustering and regional typology were centered on the septic shock rate, while analyses of non-shock and total sepsis were used as complementary descriptive and interpretive comparisons
+
+### Spatial description of INSEE variables
+```{r}
+#| echo: false
+
+insee_spatial <- readRDS("./data/derived/05_insee_spatial.RDS")
+
+plot_fr_var_insets(insee_spatial, 
+                   var = "pop_non_scol15", 
+                   label = "population non scolarisée", 
+                   group_level = NULL)
+
+```
+
+```{r}
+#| echo: false
+
+plot_fr_var_insets(insee_spatial, 
+                   var = "niveau_vie_median_annuel", 
+                   label = "Poverty", 
+                   group_level = NULL)
+```
+
+### Association plots
+```{r}
+#| echo: false
+```
 
 
+### Final regional profiles / clustering (septic shock)
+```{r}
+#| echo: false
+```
 
-
+### Final regional profiles / clustering (total sepsis, optionally non-shock)
+```{r}
+#| echo: false
+```

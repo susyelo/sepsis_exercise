@@ -7,32 +7,40 @@ pop_dat <- readRDS("data/derived/02_insee_population_REG.RDS")
 edu_dat <- readRDS("data/derived/03_insee_education_REG.RDS")
 poverty_dat <- readRDS("data/derived/02_insee_poverty_REG.RDS")
 
+## education data has a different region name format. I am changing it to the same format as all the data
+ref_table <- data.frame(region_name_ref = unique(sep_dat$region_name))
 
-anti_join(seps_dat, poverty_region_df, by = "region_name")
+edu_dat <- 
+ref_table %>% 
+  mutate(REG_NAME = gsub("-", " ", region_name_ref)) %>% 
+  mutate(REG_NAME = gsub("'", " ", REG_NAME)) %>% 
+  left_join(edu_dat, by = "REG_NAME") %>% 
+  select(region_name = region_name_ref, edu_pop15plus)
+  
+
+pop_dat$region_name <- gsub("CENTRE-VAL-DE-LOIRE", "CENTRE-VAL DE LOIRE", pop_dat$region_name)
+
 ### Joininig education and population data
 edu_pop_dat <- 
   edu_dat %>% 
-  mutate(code_region = str_pad(as.character(REG), width = 2, pad = "0")) %>% 
-  select(code_region, 
-         total_pop15plus) %>% 
-  right_join(
-    pop_dat %>% select(code_region, region_name, ensemble), 
-    by = "code_region")
+  left_join(pop_dat, by = "region_name")
 
 ## joining poverty data
 all_insee_dat <- 
   edu_pop_dat %>% 
   left_join(poverty_dat, by = "region_name") %>% 
-  select(code_region, region_name, 
-         pop_non_scol15 = total_pop15plus , 
-         total_population = ensemble, 
+  select(region_name, 
+         pop_non_scol15 = edu_pop15plus , 
+         total_population = total, 
+         plus15_population = pop15plus,
          intensite_pauvrete_pct, 
          niveau_vie_median_annuel)
 
 ## Join sepsis incidence data
 combined_all <- 
   all_insee_dat %>% 
-  left_join(sep_dat)
+  full_join(sep_dat %>% 
+              mutate(code_region = gsub(" .*", "", region)), by = "region_name")
 
 combined_NO_chock <- 
 all_insee_dat %>% 

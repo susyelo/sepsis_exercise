@@ -66,14 +66,6 @@ regions_unique %>%
   mutate(code_region = INSEE_REG) %>% 
   left_join(insee_all, by = "code_region")
 
-plot_fr_var_insets(insee_spatial, 
-                   var = "pop_non_scol15", 
-                   label = "population non scolarisée", 
-                   group_level = NULL)
 
-
-plot_fr_var_insets(insee_spatial, 
-                   var = "niveau_vie_median_annuel", 
-                   label = "Poverty", 
-                   group_level = NULL)
-
+## save data
+saveRDS(insee_spatial, "data/derived/05_insee_spatial.RDS")

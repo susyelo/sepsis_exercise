@@ -5,3 +5,5 @@ data_raw/
 data/
 /.quarto/
 **/*.quarto_ipynb
+/report/_output/
+

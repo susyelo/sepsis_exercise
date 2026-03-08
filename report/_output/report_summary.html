@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Susy Echeverria Londono">
-<meta name="dcterms.date" content="2026-03-07">
+<meta name="dcterms.date" content="2026-03-08">
 
 <title>Regional analysis of sepsis hospitalisations in France</title>
 <style>
@@ -37,6 +37,16 @@ ul.task-list li input[type="checkbox"] {
 <script src="report_summary_files/libs/bootstrap/bootstrap.min.js"></script>
 <link href="report_summary_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="report_summary_files/libs/bootstrap/bootstrap-4e558ae093f0d68b521cce264b5587f4.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="report_summary_files/libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet">
+<script src="report_summary_files/libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="report_summary_files/libs/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet">
+<script src="report_summary_files/libs/datatables-binding-0.34.0/datatables.js"></script>
+<script src="report_summary_files/libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<link href="report_summary_files/libs/dt-core-1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
+<link href="report_summary_files/libs/dt-core-1.13.6/css/jquery.dataTables.extra.css" rel="stylesheet">
+<script src="report_summary_files/libs/dt-core-1.13.6/js/jquery.dataTables.min.js"></script>
+<link href="report_summary_files/libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
+<script src="report_summary_files/libs/crosstalk-1.2.2/js/crosstalk.min.js"></script>
 <link href="report_summary_files/libs/pagedtable-1.1/css/pagedtable.css" rel="stylesheet">
 <script src="report_summary_files/libs/pagedtable-1.1/js/pagedtable.js"></script>
 
@@ -51,9 +61,10 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">Table of contents</h2>
    
   <ul class="collapse">
-  <li><a href="#sepsis-incidence" id="toc-sepsis-incidence" class="nav-link active" data-scroll-target="#sepsis-incidence"><span class="header-section-number">1</span> Sepsis incidence</a></li>
-  <li><a href="#insee-variables" id="toc-insee-variables" class="nav-link" data-scroll-target="#insee-variables"><span class="header-section-number">2</span> INSEE variables</a></li>
-  <li><a href="#niveau-de-vie-et-pauvreté-par-région" id="toc-niveau-de-vie-et-pauvreté-par-région" class="nav-link" data-scroll-target="#niveau-de-vie-et-pauvreté-par-région"><span class="header-section-number">3</span> 1. Niveau de vie et pauvreté par région</a></li>
+  <li><a href="#spatial-description-of-sepsis" id="toc-spatial-description-of-sepsis" class="nav-link active" data-scroll-target="#spatial-description-of-sepsis"><span class="header-section-number">1</span> Spatial description of sepsis</a></li>
+  <li><a href="#sepsis-outcomes" id="toc-sepsis-outcomes" class="nav-link" data-scroll-target="#sepsis-outcomes"><span class="header-section-number">2</span> sepsis outcomes</a></li>
+  <li><a href="#association-between-sepsis-incidence-and-insee-variable" id="toc-association-between-sepsis-incidence-and-insee-variable" class="nav-link" data-scroll-target="#association-between-sepsis-incidence-and-insee-variable"><span class="header-section-number">3</span> Association between sepsis incidence and INSEE variable</a></li>
+  <li><a href="#next-steps" id="toc-next-steps" class="nav-link" data-scroll-target="#next-steps"><span class="header-section-number">4</span> Next steps:</a></li>
   </ul>
 </nav>
 </div>
@@ -78,7 +89,7 @@ ul.task-list li input[type="checkbox"] {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">March 7, 2026</p>
+      <p class="date">March 8, 2026</p>
     </div>
   </div>
   
@@ -90,23 +101,55 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="sepsis-incidence" class="level2" data-number="1">
-<h2 data-number="1" class="anchored" data-anchor-id="sepsis-incidence"><span class="header-section-number">1</span> Sepsis incidence</h2>
-<section id="nombre-de-séjours-pour-sepsis-des-habitants-de-la-région-pour-100-000-habitants" class="level3" data-number="1.1">
-<h3 data-number="1.1" class="anchored" data-anchor-id="nombre-de-séjours-pour-sepsis-des-habitants-de-la-région-pour-100-000-habitants"><span class="header-section-number">1.1</span> 1. Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants</h3>
+<section id="spatial-description-of-sepsis" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="spatial-description-of-sepsis"><span class="header-section-number">1</span> Spatial description of sepsis</h2>
+</section>
+<section id="sepsis-outcomes" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="sepsis-outcomes"><span class="header-section-number">2</span> sepsis outcomes</h2>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="report_summary_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="nombre-de-séjours-pour-sepsis-des-habitants-de-la-région-pour-100-000-habitants" class="level3" data-number="2.1">
+<h3 data-number="2.1" class="anchored" data-anchor-id="nombre-de-séjours-pour-sepsis-des-habitants-de-la-région-pour-100-000-habitants"><span class="header-section-number">2.1</span> 1. Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants</h3>
 <div class="cell">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="report_summary_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid figure-img" width="960"></p>
+<p><img src="report_summary_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="960"></p>
+<figcaption>Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants</figcaption>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="report_summary_files/figure-html/unnamed-chunk-3-2.png" class="img-fluid figure-img" width="960"></p>
+<figcaption>Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Variable Interpretation Sepsis sans choc Incidence of diagnosed sepsis Septic shock Severe progression / hospital severity Combined Total burden of sepsis hospitalizations</p>
+<p>Reasoning: A region with high sepsis but low shock, suggests earlier detection or better management. Region that shows lower incidence but higher shock, suggests delayed diagnosis or different healthcare access.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="report_summary_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="960"></p>
 <figcaption>Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants</figcaption>
 </figure>
 </div>
 </div>
 </div>
 </section>
-<section id="pourcentage-de-décès" class="level3" data-number="1.2">
-<h3 data-number="1.2" class="anchored" data-anchor-id="pourcentage-de-décès"><span class="header-section-number">1.2</span> 2. pourcentage de décès</h3>
+<section id="pourcentage-de-décès" class="level3" data-number="2.2">
+<h3 data-number="2.2" class="anchored" data-anchor-id="pourcentage-de-décès"><span class="header-section-number">2.2</span> 2. pourcentage de décès</h3>
 <p>Important nuance</p>
 <p>Because the data are based on hospital stays rather than unique patients, the indicator reflects:</p>
 <p>mortality per hospitalization episode, not mortality per patient. = l’âge moyen des patients hospitalisés pour sepsis dans cette région, calculé à partir de l’ensemble des séjours hospitaliers enregistrés.</p>
@@ -115,15 +158,15 @@ ul.task-list li input[type="checkbox"] {
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="report_summary_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="960"></p>
+<p><img src="report_summary_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="960"></p>
 <figcaption>Mortalité hospitalière des séjours pour sepsis (%)</figcaption>
 </figure>
 </div>
 </div>
 </div>
 </section>
-<section id="durée-moyenne-de-séjour-dms" class="level3" data-number="1.3">
-<h3 data-number="1.3" class="anchored" data-anchor-id="durée-moyenne-de-séjour-dms"><span class="header-section-number">1.3</span> 3. Durée moyenne de séjour (DMS)</h3>
+<section id="durée-moyenne-de-séjour-dms" class="level3" data-number="2.3">
+<h3 data-number="2.3" class="anchored" data-anchor-id="durée-moyenne-de-séjour-dms"><span class="header-section-number">2.3</span> 3. Durée moyenne de séjour (DMS)</h3>
 <p>Durée moyenne de séjour (DMS) is useful to interpret regional differences in sepsis burden and severity.</p>
 <p>So DMS helps you understand whether a high number of sepsis stays reflects: many relatively short admissions, or fewer but more severe and resource-intensive admissions.</p>
 <p>Sepsis with longer average stays may indicate: more severe infections, complications, ICU care, slower recovery.</p>
@@ -133,7 +176,7 @@ ul.task-list li input[type="checkbox"] {
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="report_summary_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="960"></p>
+<p><img src="report_summary_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="960"></p>
 <figcaption>Durée moyenne de séjour (DMS)</figcaption>
 </figure>
 </div>
@@ -143,7 +186,7 @@ ul.task-list li input[type="checkbox"] {
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="report_summary_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="960"></p>
+<p><img src="report_summary_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="960"></p>
 <figcaption>âge moyen des patients hospitalisés</figcaption>
 </figure>
 </div>
@@ -151,11 +194,168 @@ ul.task-list li input[type="checkbox"] {
 </div>
 </section>
 </section>
-<section id="insee-variables" class="level2" data-number="2">
-<h2 data-number="2" class="anchored" data-anchor-id="insee-variables"><span class="header-section-number">2</span> INSEE variables</h2>
+<section id="association-between-sepsis-incidence-and-insee-variable" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="association-between-sepsis-incidence-and-insee-variable"><span class="header-section-number">3</span> Association between sepsis incidence and INSEE variable</h2>
+<p>The exercise was implemented using three sepsis outcomes, analysed separately and in aggregate as requested. Because the final question specifically concerns homogeneous regional profiles based on septic shock rates and territorial indicators, clustering and regional typology were centered on the septic shock rate, while analyses of non-shock and total sepsis were used as complementary descriptive and interpretive comparisons</p>
+<section id="spatial-description-of-insee-variables" class="level3" data-number="3.1">
+<h3 data-number="3.1" class="anchored" data-anchor-id="spatial-description-of-insee-variables"><span class="header-section-number">3.1</span> Spatial description of INSEE variables</h3>
 </section>
-<section id="niveau-de-vie-et-pauvreté-par-région" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="niveau-de-vie-et-pauvreté-par-région"><span class="header-section-number">3</span> 1. Niveau de vie et pauvreté par région</h2>
+<section id="socio-economic-variable-niveau-de-vie-et-pauvreté-par-région" class="level3" data-number="3.2">
+<h3 data-number="3.2" class="anchored" data-anchor-id="socio-economic-variable-niveau-de-vie-et-pauvreté-par-région"><span class="header-section-number">3.2</span> 1. Socio-economic variable: Niveau de vie et pauvreté par région</h3>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="report_summary_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="report_summary_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="report_summary_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="report_summary_files/figure-html/unnamed-chunk-10-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="educational-variable-population-non-scolarisée" class="level3" data-number="3.3">
+<h3 data-number="3.3" class="anchored" data-anchor-id="educational-variable-population-non-scolarisée"><span class="header-section-number">3.3</span> 2. Educational variable: population non scolarisée</h3>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="report_summary_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="report_summary_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="report_summary_files/figure-html/unnamed-chunk-12-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="urbanisation-variable-population-density" class="level3" data-number="3.4">
+<h3 data-number="3.4" class="anchored" data-anchor-id="urbanisation-variable-population-density"><span class="header-section-number">3.4</span> 3. Urbanisation variable: Population density</h3>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="report_summary_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="report_summary_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="report_summary_files/figure-html/unnamed-chunk-14-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Urbanisation and sepsis risk: Urbanisation tends to increase contact rates, mobility, and heterogeneity in living conditions therefore it could increase the infection exposure and transmission intensity which can lead to sepsis even though rban areas also have better access to early outpatient care.</p>
+</section>
+<section id="regional-profiles-clustering" class="level3" data-number="3.5">
+<h3 data-number="3.5" class="anchored" data-anchor-id="regional-profiles-clustering"><span class="header-section-number">3.5</span> Regional profiles / clustering</h3>
+<section id="brief-methods" class="level4" data-number="3.5.1">
+<h4 data-number="3.5.1" class="anchored" data-anchor-id="brief-methods"><span class="header-section-number">3.5.1</span> Brief methods:</h4>
+<p>To identify homogeneous regional profiles, I performed hierarchical clustering on a standardized matrix of sepsis and territorial indicators. All numeric variables were standardized to z-scores before analysis so that variables measured on different scales contributed comparably to the distance calculation. Euclidean distance and Ward’s linkage (ward.D2) were used to group regions with similar multivariate profiles.</p>
+<p>The number of sepsis hospitalisations and the population density variables were log transform ed to reduce skewness and improve the clustering performance.</p>
+</section>
+<section id="septic-shock" class="level4" data-number="3.5.2">
+<h4 data-number="3.5.2" class="anchored" data-anchor-id="septic-shock"><span class="header-section-number">3.5.2</span> 1. septic shock</h4>
+<p>Given the absence of two out of three sepsis indicators in the clustering (education and urbanisation variables) in the MAYOTTE region, I decided to exclude this region for the regional profiling based on septic shock rates, and to present the results for the remaining 17 regions. The mean silhouette scores for different numbers of clusters (k) were as follows:</p>
+<p>k = 2 mean silhouette = 0.6025337 k = 3 mean silhouette = 0.3613805 k = 4 mean silhouette = 0.3742333 k = 5 mean silhouette = 0.307849 k = 6 mean silhouette = 0.2445229</p>
+<p>Even though the highest silhouette score is for 2 groups, it largely collapses structure into “one big cluster + outliers.” I therefore present k=4 as the primary “profile” solution because it yields interpretable profiles and isolates outliers that may represent unique regional contexts.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div class="datatables html-widget html-fill-item" id="htmlwidget-98dd50e8b72d8565fec6" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-98dd50e8b72d8565fec6">{"x":{"filter":"none","vertical":false,"data":[["1","2","3","4"],[1,2,3,4],[13,2,1,1],[3487.15,680,130,9457],[68.88,62.85,52.2,65.90000000000001],[18.75,17.8,23.9,23.6],[0.42,0.37,0.43,0.42],[81.26000000000001,113.01,45.08,76.38],[120.55,293.75,3.5,1030.7],[22475.38,16395,11040,25210],[20.32,24.4,40.4,23.7],[89.42,88.39,84.13,85.22]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>cluster<\/th>\n      <th>n_regions<\/th>\n      <th>nb_sejours<\/th>\n      <th>age_moyen<\/th>\n      <th>dms_nuitees<\/th>\n      <th>pct_deces<\/th>\n      <th>tx_sejours_sepsis_100k<\/th>\n      <th>densite_pop_2022<\/th>\n      <th>niveau_vie_median_annuel<\/th>\n      <th>intensite_pauvrete_pct<\/th>\n      <th>pct_non_scol15<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6,7,8,9,10,11]},{"orderable":false,"targets":0},{"name":" ","targets":0},{"name":"cluster","targets":1},{"name":"n_regions","targets":2},{"name":"nb_sejours","targets":3},{"name":"age_moyen","targets":4},{"name":"dms_nuitees","targets":5},{"name":"pct_deces","targets":6},{"name":"tx_sejours_sepsis_100k","targets":7},{"name":"densite_pop_2022","targets":8},{"name":"niveau_vie_median_annuel","targets":9},{"name":"intensite_pauvrete_pct","targets":10},{"name":"pct_non_scol15","targets":11}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><img src="outputs/figures/05_dendrogram_septic_shock_ward.png" class="img-fluid"> <img src="outputs/figures/05_pca_septic_shock_clusters.png" class="img-fluid"></p>
+<p>The 4 profiles identified are:</p>
+<p><strong>Cluster A: baseline mainland profile with moderate shock rates and mid-range socioeconomic indicators — most metropolitan regions, plus Martinique and Corse</strong></p>
+<p>This cluster includes most metropolitan regions together with Martinique and Corse. It is characterized by moderate septic shock rates, an older mean age than the other clusters, and mid-range socioeconomic conditions. Compared with the island and overseas outlier clusters, these regions have more favourable living standards and lower poverty intensity, while remaining relatively similar to each other in their territorial indicators.</p>
+<p><strong>Cluster B: higher shock-incidence island profile — Guadeloupe and La Réunion</strong></p>
+<p>This cluster is characterized by the highest hospitalization-based septic shock rates among the multi-region groups, with an average of about 108 stays per 100,000 inhabitants. It is also associated with a younger mean age than the mainland baseline cluster and a lower percentage of in-hospital deaths. In socioeconomic terms, these regions show lower median living standard than most metropolitan regions, together with moderately high population density. Overall, this profile suggests an island context with higher observed septic shock burden, younger hospitalized patients, and a less advantaged socioeconomic environment than the mainland reference profile.</p>
+<p><strong>Cluster C: very low-density overseas outlier — Guyane</strong></p>
+<p>This cluster is distinguished by extremely low population density, a much younger mean age, longer hospital stays, and less favourable socioeconomic indicators than the mainland baseline cluster. At the same time, the observed septic shock hospitalization rate is lower than in the mainland reference cluster. This profile is consistent with a territory where large distances, sparse population distribution, and healthcare access constraints may shape both hospitalization patterns and the measured burden of septic shock.</p>
+<p><strong>Cluster D: dense, high-volume metropolitan outlier — Île-de-France</strong></p>
+<p>This region stands out because of its very high population density and the largest number of septic shock stays in absolute terms. It also shows the highest median living standard and a longer average length of stay than most other regions. Its septic shock rate per 100,000 is not the highest, but the combination of large hospital volume, extreme urban density, and more favourable socioeconomic indicators makes it a clearly distinct metropolitan profile.</p>
+</section>
+<section id="total-sepsis" class="level4" data-number="3.5.3">
+<h4 data-number="3.5.3" class="anchored" data-anchor-id="total-sepsis"><span class="header-section-number">3.5.3</span> 2. Total sepsis</h4>
+<p>k = 2 mean silhouette = 0.5654373 k = 3 mean silhouette = 0.5476771 k = 4 mean silhouette = 0.3579099 k = 5 mean silhouette = 0.3640466 k = 6 mean silhouette = 0.29584</p>
+<p>As in the only shock analysis, I choose k=5 as the primary “profile” solution because it yields interpretable profiles and isolates outliers that may represent unique regional contexts.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div class="datatables html-widget html-fill-item" id="htmlwidget-8d9fd196e1bd6623d5d5" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-8d9fd196e1bd6623d5d5">{"x":{"filter":"none","vertical":false,"data":[["1","2","3","4","5"],[1,2,3,4,5],[2,13,1,1,1],[2001,10718.31,506,187,27726],[60.29,68.75,46.78,52.58,63.46],[16.94,17.86,21,16.1,20.83],[0.19,0.25,0.17,0.21,0.24],[343.73,255.5,175.46,62.41,223.94],[293.75,120.55,3.5,null,1030.7],[16395,22475.38,11040,3120,25210],[24.4,20.32,40.4,87.3,23.7],[88.39,89.42,84.13,null,85.22]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>cluster<\/th>\n      <th>n_regions<\/th>\n      <th>nb_sejours<\/th>\n      <th>age_moyen<\/th>\n      <th>dms_nuitees<\/th>\n      <th>pct_deces<\/th>\n      <th>tx_sejours_sepsis_100k<\/th>\n      <th>densite_pop_2022<\/th>\n      <th>niveau_vie_median_annuel<\/th>\n      <th>intensite_pauvrete_pct<\/th>\n      <th>pct_non_scol15<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6,7,8,9,10,11]},{"orderable":false,"targets":0},{"name":" ","targets":0},{"name":"cluster","targets":1},{"name":"n_regions","targets":2},{"name":"nb_sejours","targets":3},{"name":"age_moyen","targets":4},{"name":"dms_nuitees","targets":5},{"name":"pct_deces","targets":6},{"name":"tx_sejours_sepsis_100k","targets":7},{"name":"densite_pop_2022","targets":8},{"name":"niveau_vie_median_annuel","targets":9},{"name":"intensite_pauvrete_pct","targets":10},{"name":"pct_non_scol15","targets":11}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p><img src="outputs/figures/05_dendrogram_septic_all_ward.png" class="img-fluid"> <img src="outputs/figures/05_pca_septic_all_clusters.png" class="img-fluid"></p>
+<p>The 5 profiles identified are:</p>
+<p><strong>Cluster A: higher-incidence island profile Guadeloupe</strong></p>
+<p>This cluster is characterized by high sepsis stay rates per 100k paired with relatively lower mean age and lower percent deaths in your stay data, alongside moderately high density and lower median living standard than most metropolitan regions.</p>
+<p><strong>Cluster B: “baseline” mainland profile with moderate sepsis rates and socio-economic indicators</strong></p>
+<p>This cluster includes most metropolitan regions plus Corse characterised by moderate sepsis rates, older mean age, and mid-range socioeconomic indicators. Metropolitan regions are comparatively similar on socioeconomic variables, with some variation in sepsis rates and age.</p>
+<p><strong>Cluster C: dense/high-volume metropolitan outlier - Île-de-France</strong></p>
+<p>This region stands out by very high density and high stay volume, with high median living standard and a longer dms nuitees relative to most regions. It has a high sepsis rate but also better socioeconomic indicators, suggesting a unique urban profile with high healthcare access and utilization.</p>
+<p><strong>Cluster D: very low-density overseas outlier - Guyane</strong></p>
+<p>This region is distinctive for extremely low density, younger mean age, high dms nuitees, and worse socioeconomic indicators than the mainland cluster, with a lower sepsis rate than Cluster B in the hospitalization-based measure. The very low density plus large distances can be associated with different access and health care pathways.</p>
+<p><strong>Cluster E: extreme-poverty overseas outlier - Mayotte</strong></p>
+<p>This region is dominated by extreme poverty intensity and very low median living standard, coupled with a low observed sepsis rate in the hospitalization data, which may reflect underdiagnosis or underutilization of hospital care for sepsis. It also has a younger mean age and high dms nuitees, suggesting a unique profile of sepsis burden and healthcare access challenges. These results should be interpreted with caution given the absence of two out of three sepsis indicators in the clustering (education and urbanisation variables) and the potential for underdiagnosis in this context.</p>
+</section>
+</section>
+</section>
+<section id="next-steps" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="next-steps"><span class="header-section-number">4</span> Next steps:</h2>
+<ul>
+<li>Explore the profiles in more depth by comparing the full multivariate profiles of each cluster, including the sepsis indicators and the territorial indicators.</li>
+<li>Consider alternative clustering methods (e.g.&nbsp;k-means, model-based clustering) and compare results.</li>
+<li>Perform sensitivity analyses by including/excluding different sets of variables to see how the profiles change.</li>
+<li>perform a more detailed analysis of the metropolitan cluster (Île-de-France) to understand the drivers of its unique profile, and whether it can be further subdivided into meaningful subclusters.</li>
+</ul>
 </section>
 
 </main>

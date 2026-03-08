@@ -2,6 +2,8 @@ library(sf)
 library(dplyr)
 library(ggplot2)
 library(patchwork)
+library(ggrepel)
+
 
 
 harmonise_region <- function(x) {
@@ -216,3 +218,120 @@ plot_maps_var <- function(sf_data,
     ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
                    legend.position = "right")
 }
+
+
+plot_scatter_y_outliers <- function(data,
+                                    xvar,
+                                    yvar,
+                                    group_var = NULL,
+                                    label_var = "region",
+                                    detect_within_group = FALSE,
+                                    method = c("iqr","zscore"),
+                                    outlier_side = c("both","upper","lower"),
+                                    iqr_mult = 1.5,
+                                    z_cut = 2.5) {
+  
+  method <- match.arg(method)
+  outlier_side <- match.arg(outlier_side)
+  
+  dat <- data %>%
+    mutate(.y = .data[[yvar]])
+  
+  # Grouping only if group_var exists
+  if (!is.null(group_var) && detect_within_group) {
+    dat <- dat %>% group_by(across(all_of(group_var)))
+  }
+  
+  # ---- Outlier detection ----
+  
+  if (method == "iqr") {
+    
+    dat <- dat %>%
+      mutate(
+        q1 = quantile(.y, 0.25, na.rm = TRUE),
+        q3 = quantile(.y, 0.75, na.rm = TRUE),
+        iqr = IQR(.y, na.rm = TRUE),
+        lower = q1 - iqr_mult * iqr,
+        upper = q3 + iqr_mult * iqr
+      )
+    
+    dat <- dat %>%
+      mutate(
+        is_outlier = case_when(
+          outlier_side == "both"  ~ .y < lower | .y > upper,
+          outlier_side == "upper" ~ .y > upper,
+          outlier_side == "lower" ~ .y < lower
+        )
+      )
+    
+  } else {
+    
+    dat <- dat %>%
+      mutate(
+        z = (.y - mean(.y, na.rm = TRUE)) / sd(.y, na.rm = TRUE)
+      )
+    
+    dat <- dat %>%
+      mutate(
+        is_outlier = case_when(
+          outlier_side == "both"  ~ abs(z) > z_cut,
+          outlier_side == "upper" ~ z > z_cut,
+          outlier_side == "lower" ~ z < -z_cut
+        )
+      )
+  }
+  
+  dat <- dat %>% ungroup()
+  
+  # ---- Plot ----
+  
+  if (is.null(group_var)) {
+    
+    p <- ggplot(dat, aes(x = .data[[xvar]], y = .data[[yvar]])) +
+      geom_point(data = dat %>% filter(!is_outlier),
+                 size = 2.5, alpha = 0.75) +
+      
+      geom_point(data = dat %>% filter(is_outlier),
+                 shape = 21,
+                 size = 4,
+                 stroke = 1.2,
+                 fill = "red",
+                 colour = "black")
+    
+  } else {
+    
+    p <- ggplot(dat,
+                aes(x = .data[[xvar]],
+                    y = .data[[yvar]],
+                    colour = .data[[group_var]])) +
+      
+      geom_point(data = dat %>% filter(!is_outlier),
+                 size = 2.5,
+                 alpha = 0.75) +
+      
+      geom_point(data = dat %>% filter(is_outlier),
+                 aes(fill = .data[[group_var]]),
+                 shape = 21,
+                 size = 4,
+                 stroke = 1.2,
+                 colour = "black")
+  }
+  
+  p +
+    geom_text_repel(
+      data = dat %>% filter(is_outlier),
+      aes(label = .data[[label_var]]),
+      colour = "black",
+      size = 3.5,
+      max.overlaps = Inf,
+      show.legend = FALSE
+    ) +
+    labs(
+      x = xvar,
+      y = yvar,
+      colour = NULL
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(panel.grid.minor = element_blank())
+}
+

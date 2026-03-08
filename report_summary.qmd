@@ -3,12 +3,8 @@ title: "Regional analysis of sepsis hospitalisations in France"
 author: "Susy Echeverria Londono"
 date: today
 format:
-  html:
+  pdf:
     toc: true
-    toc-depth: 2
-    number-sections: true
-    theme: cosmo
-    code-fold: false
 execute:
   echo: true
   warning: false
@@ -25,7 +21,8 @@ library(readr)
 library(here)
 library(ggplot2)
 library(patchwork)
-library(DT)
+library(knitr)
+library(kableExtra)
 
 theme_set(theme_minimal(base_size = 12))
 ```
@@ -215,6 +212,8 @@ plot_fr_var_insets(insee_spatial,
 
 ```{r}
 #| echo: false
+#| fig-height: 10
+#| fig-width: 10
 
 plot_scatter_y_outliers(
   combined_all,
@@ -235,6 +234,14 @@ combined_all %>%
   summarise(tx_sejours_sepsis_100k = sum(tx_sejours_sepsis_100k, na.rm = TRUE),
             niveau_vie_median_annuel = mean(niveau_vie_median_annuel, na.rm = TRUE))
 
+```
+
+
+```{r}
+#| echo: false
+#| fig-height: 10
+#| fig-width: 10
+
 
 plot_scatter_y_outliers(
   sejour_combine,
@@ -244,6 +251,7 @@ plot_scatter_y_outliers(
   label_var = "region_name"
 ) + xlab("Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants") + 
   ylab("Niveau de vie médian annuel")
+
 ```
 
 The regional comparison suggests that sepsis hospitalisation rates tend to be higher in regions with lower median living standards and greater poverty intensity. This pattern indicates that socioeconomically disadvantaged territories may experience a greater burden of sepsis-related hospitalisations. Guadalupe, Guyane and Mayotte, are highlighted as the main outliers with high sepsis rates and worse socioeconomic indicators. 
@@ -264,6 +272,8 @@ plot_fr_var_insets(insee_spatial,
 
 ```{r}
 #| echo: false
+#| fig-height: 10
+#| fig-width: 10
 
 plot_scatter_y_outliers(
   combined_all,
@@ -294,6 +304,21 @@ plot_scatter_y_outliers(
   ylab("Population non scolarisée de 15 ans ou plus (pct)")
 ```
 
+```{r}
+#| echo: false
+#| fig-height: 10
+#| fig-width: 10
+
+plot_scatter_y_outliers(
+  sejour_combine,
+  xvar = "tx_sejours_sepsis_100k",
+  yvar = "pct_non_scol15",
+  group_var = NULL,
+  label_var = "region_name"
+) + xlab("Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants") + 
+  ylab("Population non scolarisée de 15 ans ou plus (pct)")
+```
+
 The regional comparison suggests that sepsis hospitalisation rates tend to be higher in regions with a greater share of the population aged 15 years or older who are not in education. This pattern may indicate that less advantaged educational contexts are associated with a greater burden of sepsis-related hospitalisations. However, this relationship remains descriptive and ecological, and may also reflect differences in age structure, socioeconomic conditions, baseline health, and healthcare access across regions. Guyane and Ile-de-France are highlighted as outliers with high sepsis rates and a lower share of the population not in education. 
 
 ## Urbanisation variable: Population density
@@ -311,6 +336,8 @@ plot_fr_var_insets(insee_spatial,
 
 ```{r}
 #| echo: false
+#| fig-height: 10
+#| fig-width: 10
 
 plot_scatter_y_outliers(
   combined_all,
@@ -330,6 +357,23 @@ combined_all %>%
   group_by(region_name) %>% 
   summarise(tx_sejours_sepsis_100k = sum(tx_sejours_sepsis_100k, na.rm = TRUE),
             densite_pop_2022 = mean(densite_pop_2022, na.rm = TRUE))
+
+plot_scatter_y_outliers(
+  sejour_combine,
+  xvar = "tx_sejours_sepsis_100k",
+  yvar = "densite_pop_2022",
+  group_var = NULL,
+  label_var = "region_name"
+) + xlab("Nombre de séjours pour sepsis des habitants de la région pour 100 000 habitants") + 
+  ylab("Densité de la population (nombre d'habitants au km²)")
+
+```
+
+
+```{r}
+#| echo: false
+#| fig-height: 10
+#| fig-width: 10
 
 plot_scatter_y_outliers(
   sejour_combine,
@@ -372,7 +416,8 @@ sum_means_tab <- read.csv("./outputs/tables/05_septic_shock_cluster_summary_mean
 
 sum_means_tab %>% 
   mutate(across(where(is.numeric), ~ round(.x, 2))) %>%
-  datatable()
+  kable(format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = "scale_down")
 
 ```
 
@@ -419,7 +464,8 @@ sum_means_tab_all <- read.csv("./outputs/tables/05_septic_all_cluster_summary_me
 
 sum_means_tab_all %>% 
   mutate(across(where(is.numeric), ~ round(.x, 2))) %>%
-  datatable()
+  kable(format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = "scale_down")
 
 ```
 

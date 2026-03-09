@@ -2,22 +2,14 @@ project:
   type: default
   output-dir: report/_output
 
+format:
+  pdf:
+    toc: true
+    fig-format: png
+    fig-dpi: 120
+
+
 execute:
   echo: false
   warning: false
   message: false
-  freeze: auto
-
-format:
-  html:
-    toc: true
-    toc-depth: 3
-    number-sections: true
-    theme: cosmo
-    code-fold: true
-    df-print: paged
-  pdf:
-    toc: true
-    number-sections: true
-
-editor: visual

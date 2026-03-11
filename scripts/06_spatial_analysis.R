@@ -11,6 +11,8 @@ library(dplyr)
 library(scales)
 library(patchwork)
 library(INLA) # Bayesian spatial models (BYM2)
+library(regclass)
+library(spatialreg)
 
 
 ## Data prep -----------------------------------------------------------
@@ -98,7 +100,7 @@ summary(nb_queen)
 
 ## Convert to row-standardised weights (each region's neighbours sum to 1).
 ## Row standardisation is standard for Moran's I and SAR models.
-## For BYM2 we use binary weights).
+## For BYM2 binary weights).
 w_listw <- nb2listw(nb_queen, style = "W")
 
 
@@ -171,3 +173,63 @@ LISA_ile_de_france <-
   select(NOM_M, quad, tx_sejours_sepsis_100k, local_I, local_pval, quad_sig)
 
 saveRDS(LISA_ile_de_france, "data/derived/06_LISA_ile_de_france.RDS")
+
+
+
+# OLS ---------------------------------------------------------------------
+insee_vars <- 
+  shock_combined |>
+  select(intensite_pauvrete_pct, niveau_vie_median_annuel, 
+         pct_non_scol15, densite_pop_2022, log_dens) |>
+  distinct()
+
+cor(insee_vars, use = "complete.obs")
+
+# Fit OLS
+model_dat <- 
+  dat_sf %>%
+  st_drop_geometry() 
+
+ols_fit <- lm(tx_sejours_sepsis_100k ~ niveau_vie_z +  log_dens_z, 
+              data = model_dat)
+
+summary(ols_fit)
+VIF(ols_fit)
+
+# Test residuals for spatial autocorrelation
+model_dat_scaled$resid <- residuals(ols_fit)
+
+ 
+
+# Attach geometry back
+shock_combined_resid <- 
+  dat_sf %>%
+  distinct(region_name, .keep_all = TRUE) %>%
+  left_join(model_dat_scaled %>% select(region_name, resid), by = "region_name")
+
+
+## mapping residuals to check for spatial patterns in the residuals (which would suggest that the OLS model is missing spatially structured predictors or that a spatial model is needed)
+
+ggplot(shock_combined_resid) +
+  geom_sf(aes(fill = resid)) +
+  scale_fill_gradient2(
+    low = "blue", mid = "white", high = "red",
+    midpoint = 0,
+    name = "Residual"
+  ) +
+  labs(title = "OLS Residuals — Sepsis hospitalisation rate",
+       subtitle = "Red = higher than predicted, Blue = lower than predicted") +
+  theme_minimal()
+
+
+
+moran.test(shock_combined_resid$resid, w_listw)
+
+# fitting SEM model -------------------------------------------------------
+sem_fit <- errorsarlm(tx_sejours_sepsis_100k ~ niveau_vie_z + log_dens_z,
+                      data = model_dat,
+                      listw = w_listw)
+
+summary(sem_fit)
+
+

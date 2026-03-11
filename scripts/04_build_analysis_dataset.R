@@ -73,11 +73,15 @@ insee_spatial <-
   left_join(insee_all, by = "region_name")
 
 
+
+
+
 # savedata ----------------------------------------------------------------
+saveRDS(regions_unique, "./data/derived/04_spatial_dat.RDS")
 saveRDS(all_insee_dat, "./data/derived/04_all_insee_dat.RDS")
+saveRDS(insee_spatial, "data/derived/04_insee_spatial.RDS")
 saveRDS(combined_NO_chock, "./data/derived/04_combined_NO_chock.RDS")
 saveRDS(combined_chock, "./data/derived/04_combined_chock.RDS")
 saveRDS(combined_all, "./data/derived/04_combined_all.RDS")
-saveRDS(insee_spatial, "data/derived/04_insee_spatial.RDS")
 
 

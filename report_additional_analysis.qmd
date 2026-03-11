@@ -1,0 +1,87 @@
+---
+title: "Spatial analysis of septic shock hospitalisation rates across French regions"
+author: "Susy Echeverria Londono"
+date: today
+format:
+  pdf:
+    toc: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(sf)
+library(readr)
+library(here)
+library(ggplot2)
+library(patchwork)
+library(knitr)
+library(kableExtra)
+
+theme_set(theme_minimal(base_size = 12))
+
+knitr::opts_chunk$set(
+  dev = "ragg_png",
+  dpi = 120,
+  fig.width = 7,
+  fig.height = 5,
+  out.width = "88%",
+  fig.retina = 1
+)
+```
+
+# Introduction
+
+To better characterise the links between regional sepsis incidence and the selected INSEE territorial indicators, I am performing two complementary analytical approaches in this report: 
+
+1. Besag-York-Mollié (BYM) Bayesian spatial model: 
+
+
+# Objectives
+
+Stage 1 — Spatial autocorrelation diagnosis (Moran's I) + OLS + SAR/SEM on metropolitan France only. 
+Stage 2 — Regularized regression (Ridge/LASSO) to understand which INSEE indicators matter most.
+
+
+
+# caveats:  
+
+- spatial autocorrelation test (Moran's I): with n = 13 regions, this test has low statistical power. A non-significant result does NOT prove the absence of spatial structure — it may simply reflect insufficient data to detect moderate autocorrelation.
+
+
+# Spatial autocorrelation diagnosis (Moran's I)
+
+```{r}
+# echo = FALSE
+
+moran_mc <- readRDS("data/derived/06_moran_mc_result.RDS")
+
+plot(moran_mc, main = "Moran's I permutation distribution (septic shock rate)")
+```
+
+
+Global Moran's I was positive (I = `{r} round(moran_mc$statistic[[1]],2)`), suggesting a weak tendency toward spatial clustering of sepsis hospitalisation rates, but this did not reach statistical significance (p = `{r} round(moran_mc$p.value, 2)`), likely reflecting the limited power of the test at the regional scale (n = 13). These results neither confirm nor rule out spatial autocorrelation.
+
+However, given the extraordinary population density and urban concentration of Ile-de-France, I am interested in exploring if Ile-de-France behaves as a driver of local clusters of low incidence of sepsis (healthcare spill-over) or as an outlier. To explore this, I am performing Local Moran's I (LISA) analysis. 
+
+```{r}
+#| echo: false
+
+LISA_ile_de_france <- readRDS("data/derived/06_LISA_ile_de_france.RDS")
+
+print(LISA_ile_de_france)
+
+```
+
+
+Île-de-France appears in the LH quadrant of the Moran scatterplot — suggesting lower-than-average sepsis rates surrounded by higher-than-average neighbors — though this local pattern did not reach statistical significance (p > 0.05), likely reflecting the limited power of the test at the regional scale.
+
+This result presents Île-de-France as a notable region: despite having the highest population density in France, it shows a below-average sepsis hospitalisation rate, while its neighboring regions tend to show higher rates. This pattern is consistent with the hypothesis that concentrated healthcare infrastructure in Île-de-France may contribute to lower sepsis incidence locally, though it does not appear to extend to surrounding regions. 
+
+

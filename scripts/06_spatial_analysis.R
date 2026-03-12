@@ -13,12 +13,14 @@ library(patchwork)
 library(INLA) # Bayesian spatial models (BYM2)
 library(regclass)
 library(spatialreg)
+library(glmnet)
 
 
 ## Data prep -----------------------------------------------------------
 # Load spatial data
 shock_combined <- readRDS("./data/derived/04_combined_chock.RDS")
 spatial_data <- readRDS("./data/derived/04_spatial_dat.RDS")
+INSEE_data <- readRDS("./data/derived/04_all_insee_dat.RDS")
 
 
 # Filtering and transforming data -----------------------------------------
@@ -52,14 +54,15 @@ shock_combined <-
   mutate(
     niveau_vie_z   = as.numeric(scale(niveau_vie_median_annuel)),
     pct_non_scol_z = as.numeric(scale(pct_non_scol15)),
-    log_dens_z     = as.numeric(scale(log_dens))
-  )
+    log_dens_z     = as.numeric(scale(log_dens)),
+    intensite_pauvrete_pct_z = as.numeric(scale(intensite_pauvrete_pct))
+)
 
 
 ## Quick check: variances of pct_non_scol15 are narrow. This
 ## variable may contribute little to the model — watch its coefficient.
-summary(shock_combined[, c("niveau_vie_z", "pct_non_scol_z", "log_dens_z",
-                     "tx_sejours_sepsis_100k", "nb_sejours")])
+summary(shock_combined[, 
+                       c("niveau_vie_z", "pct_non_scol_z", "log_dens_z", "intensite_pauvrete_pct_z","tx_sejours_sepsis_100k", "nb_sejours")])
 
 
 
@@ -166,70 +169,81 @@ dat_sf$quad_sig <- ifelse(dat_sf$local_pval < 0.05,
                           dat_sf$quad, "Not significant")
 
 # Quick look at Île-de-France specifically
-LISA_ile_de_france <-
+LISA_results <-
   dat_sf %>% 
   st_drop_geometry() %>%
-  filter(grepl("ILE-DE-FRANCE", NOM_M, ignore.case = TRUE)) %>%
+  filter(grepl("ILE-DE-FRANCE|PAYS DE LA LOIRE", NOM_M, ignore.case = TRUE)) %>%
   select(NOM_M, quad, tx_sejours_sepsis_100k, local_I, local_pval, quad_sig)
 
-saveRDS(LISA_ile_de_france, "data/derived/06_LISA_ile_de_france.RDS")
+saveRDS(LISA_results, "data/derived/06_LISA_results.RDS")
 
 
 
 # OLS ---------------------------------------------------------------------
+## check correlation among variables to watch for multicollinearity in the OLS model. High correlation among predictors can inflate standard errors and make it hard to interpret coefficients. If I find high correlations, I may consider removing or combining variables, or using a regularisation method like Ridge regression.
+
 insee_vars <- 
   shock_combined |>
   select(intensite_pauvrete_pct, niveau_vie_median_annuel, 
-         pct_non_scol15, densite_pop_2022, log_dens) |>
+         pct_non_scol15, log_dens) |>
   distinct()
 
-cor(insee_vars, use = "complete.obs")
+cor_dat <- cor(insee_vars, use = "complete.obs")
+
+saveRDS(cor_dat, "data/derived/06_insee_vars_correlation.RDS")
 
 # Fit OLS
-model_dat <- 
-  dat_sf %>%
-  st_drop_geometry() 
 
-ols_fit <- lm(tx_sejours_sepsis_100k ~ niveau_vie_z +  log_dens_z, 
-              data = model_dat)
+ols_fit <- lm(tx_sejours_sepsis_100k ~ niveau_vie_z +  log_dens_z + pct_non_scol_z + intensite_pauvrete_pct_z, data = shock_combined)
 
 summary(ols_fit)
 VIF(ols_fit)
 
-# Test residuals for spatial autocorrelation
-model_dat_scaled$resid <- residuals(ols_fit)
-
- 
-
-# Attach geometry back
-shock_combined_resid <- 
-  dat_sf %>%
-  distinct(region_name, .keep_all = TRUE) %>%
-  left_join(model_dat_scaled %>% select(region_name, resid), by = "region_name")
+saveRDS(ols_fit, "./data/derived/06_ols_model.RDS")
 
 
-## mapping residuals to check for spatial patterns in the residuals (which would suggest that the OLS model is missing spatially structured predictors or that a spatial model is needed)
-
-ggplot(shock_combined_resid) +
-  geom_sf(aes(fill = resid)) +
-  scale_fill_gradient2(
-    low = "blue", mid = "white", high = "red",
-    midpoint = 0,
-    name = "Residual"
-  ) +
-  labs(title = "OLS Residuals — Sepsis hospitalisation rate",
-       subtitle = "Red = higher than predicted, Blue = lower than predicted") +
-  theme_minimal()
-
-
-
-moran.test(shock_combined_resid$resid, w_listw)
 
 # fitting SEM model -------------------------------------------------------
-sem_fit <- errorsarlm(tx_sejours_sepsis_100k ~ niveau_vie_z + log_dens_z,
-                      data = model_dat,
-                      listw = w_listw)
+lm.RStests(ols_fit, listw = w_listw, test = "all")
+
+sem_fit <- 
+  errorsarlm(tx_sejours_sepsis_100k ~ niveau_vie_z +  log_dens_z + pct_non_scol_z + intensite_pauvrete_pct_z, data = model_dat, listw = w_listw)
 
 summary(sem_fit)
+
+
+# fitting Ridge regression -------------------------------------------------------
+
+# Prepare matrix - include all predictors now
+# since Ridge handles multicollinearity
+x_dat <- 
+  shock_combined %>%
+  select(niveau_vie_z, intensite_pauvrete_pct_z,
+         pct_non_scol_z, log_dens_z) %>%
+  as.matrix()
+
+y_dat <- shock_combined$tx_sejours_sepsis_100k
+
+# Cross-validated Ridge (alpha = 0 for Ridge, 1 for LASSO)
+set.seed(123)
+
+# Leave-one-out CV for small samples
+#cv.glmnet defaults to 10-fold cross-validation — but with n=13, some folds will have only 1-2 observations. I am therefore leaving one out cross-validation instead
+  
+ridge_cv <- cv.glmnet(x_dat, y_dat, alpha = 0, nfolds = 13)
+
+# Optimal lambda
+plot(ridge_cv)
+best_lambda <- ridge_cv$lambda.min
+cat("Best lambda:", best_lambda)
+
+# Final coefficients
+coef(ridge_cv, s = "lambda.min")
+
+saveRDS(ridge_cv, "./data/derived/06_ridge_model.RDS")
+
+
+
+# BYM2 model --------------------------------------------------------------
 
 

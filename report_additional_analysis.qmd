@@ -1,5 +1,5 @@
 ---
-title: "Spatial analysis of septic shock hospitalisation rates across French regions"
+title: "Spatial and Socioeconomic Determinants of Sepsis Hospitalisation Rates in France"
 author: "Susy Echeverria Londono"
 date: today
 format:
@@ -23,6 +23,7 @@ library(ggplot2)
 library(patchwork)
 library(knitr)
 library(kableExtra)
+library(stargazer)
 
 theme_set(theme_minimal(base_size = 12))
 
@@ -40,19 +41,12 @@ knitr::opts_chunk$set(
 
 To better characterise the links between regional sepsis incidence and the selected INSEE territorial indicators, I am performing two complementary analytical approaches in this report: 
 
-1. Besag-York-Mollié (BYM) Bayesian spatial model: 
-
-
-# Objectives
 
 Stage 1 — Spatial autocorrelation diagnosis (Moran's I) + OLS + SAR/SEM on metropolitan France only. 
+
 Stage 2 — Regularized regression (Ridge/LASSO) to understand which INSEE indicators matter most.
 
-
-
-# caveats:  
-
-- spatial autocorrelation test (Moran's I): with n = 13 regions, this test has low statistical power. A non-significant result does NOT prove the absence of spatial structure — it may simply reflect insufficient data to detect moderate autocorrelation.
+For these two approaches, I am focusing on metropolitan France + Corse only (n = 13 regions) to avoid the confounding influence of overseas territories, which have very different healthcare contexts and sepsis epidemiology.
 
 
 # Spatial autocorrelation diagnosis (Moran's I)
@@ -73,15 +67,93 @@ However, given the extraordinary population density and urban concentration of I
 ```{r}
 #| echo: false
 
-LISA_ile_de_france <- readRDS("data/derived/06_LISA_ile_de_france.RDS")
+LISA_results <- readRDS("data/derived/06_LISA_results.RDS")
 
-print(LISA_ile_de_france)
+LISA_results %>%
+  kable() %>%
+  kable_styling(full_width = FALSE, position = "center")
 
 ```
 
 
 Île-de-France appears in the LH quadrant of the Moran scatterplot — suggesting lower-than-average sepsis rates surrounded by higher-than-average neighbors — though this local pattern did not reach statistical significance (p > 0.05), likely reflecting the limited power of the test at the regional scale.
 
-This result presents Île-de-France as a notable region: despite having the highest population density in France, it shows a below-average sepsis hospitalisation rate, while its neighboring regions tend to show higher rates. This pattern is consistent with the hypothesis that concentrated healthcare infrastructure in Île-de-France may contribute to lower sepsis incidence locally, though it does not appear to extend to surrounding regions. 
+Pays de la Loire is the only statistically significant cluster (p = 0.034) — a genuine LL cluster, meaning low sepsis rates in a region surrounded by other low-rate regions (Bretagne, Normandie, Centre-Val de Loire). This is a stable, locally coherent low-risk pocket in western France, which may reflect shared regional characteristics such as healthcare access, population health, or socioeconomic factors that warrant further investigation.
+
+Spatial autocorrelation test (Moran's I): with n = 13 regions, this test has low statistical power. A non-significant result does NOT prove the absence of spatial structure — it may simply reflect insufficient data to detect moderate autocorrelation.
 
 
+# Links between sepsis hospitalisation rates and INSEE territorial indicators. 
+
+To examine the relationship between regional sepsis hospitalisation rates and socioeconomic indicators from INSEE, I applied a sequential modelling approach of increasing complexity. I first used Ordinary Least Squares (OLS) regression as a baseline
+
+## Ordinary Least Squares (OLS) regression
+
+
+```{r}
+#| echo: false
+
+ols_model <- readRDS("data/derived/06_ols_model.RDS")
+stargazer(ols_model, type="text", title="Results", align=TRUE)
+
+```
+
+
+OLS regression revealed no significant association between regional socioeconomic indicators and sepsis hospitalisation rates (F(4,8) = 0.96, p = 0.48; adjusted R² = −0.01). Severe collinearity between population density and low educational attainment (r = −0.91) inflated standard errors for individual coefficients. I therefore use the Ridge regression to assess whether coefficient stabilisation under penalisation would recover any meaningful signal.
+
+## Ridge regression
+
+```{r}
+#| echo: false
+
+ridge_model <- readRDS("data/derived/06_ridge_model.RDS")
+
+coef(ridge_cv, s = "lambda.min")
+```
+
+Ridge regression with cross-validated penalty (λ = 2630) shrunk all coefficients to near zero, confirming that the weak OLS signal was not an artefact of multicollinearity. Even after stabilising the coefficient estimates, socioeconomic indicators collectively explained negligible variation in regional sepsis hospitalisation rates. The direction of economic predictors (income negative, poverty positive) was consistent with expectation, but the magnitudes were too small to support substantive conclusions. Population density and low educational attainment showed no independent association with sepsis rates even after their collinearity was addressed.
+
+
+## Bayesian hierarchical model (BYM2)
+
+Given the small number of regions (n = 13) and the count-derived nature of the outcome -- number of hospitalisations, I performed a Bayesian hierarchical model (BYM2) as a complementary analysis using R-INLA. This approach provides posterior risk estimates for each region with full uncertainty quantification, and accommodates the Poisson data-generating process more appropriately than OLS. 
+
+```{r}
+
+```
+
+
+
+# ANEXA: spatial Residual diagnostics for OLS model
+```{r}
+#| echo: false
+
+# Test residuals for spatial autocorrelation
+model_dat$resid <- residuals(ols_fit)
+
+ 
+# Attach geometry back
+shock_combined_resid <- 
+  dat_sf %>%
+  distinct(region_name, .keep_all = TRUE) %>%
+  left_join(model_dat %>% select(region_name, resid), by = "region_name")
+
+
+## mapping residuals to check for spatial patterns in the residuals (which would suggest that the OLS model is missing spatially structured predictors or that a spatial model is needed)
+
+ggplot(shock_combined_resid) +
+  geom_sf(aes(fill = resid)) +
+  scale_fill_gradient2(
+    low = "blue", mid = "white", high = "red",
+    midpoint = 0,
+    name = "Residual"
+  ) +
+  labs(title = "OLS Residuals — Sepsis hospitalisation rate",
+       subtitle = "Red = higher than predicted, Blue = lower than predicted") +
+  theme_minimal()
+
+
+moran.test(model_dat$resid, w_listw)
+
+
+```

@@ -243,12 +243,61 @@ plot(ridge_cv)
 best_lambda <- ridge_cv$lambda.min
 cat("Best lambda:", best_lambda)
 
+#use fitted best model to make predictions
+y_predicted <- predict(ridge_cv, s = best_lambda, newx = x_dat)
+
+#find SST and SSE
+sst <- sum((y_dat - mean(y_dat))^2)
+sse <- sum((y_predicted - y_dat)^2)
+
+#find R-Squared
+rsq <- 1 - sse/sst
+rsq
+
 # Final coefficients
 coef(ridge_cv, s = "lambda.min")
 
 saveRDS(ridge_cv, "./data/derived/06_ridge_model.RDS")
 
 
+
+## Plots 
+coef_matrix <- as.matrix(coef(ridge_cv))
+
+set.seed(42)
+n_boot  <- 200
+boot_coefs <- matrix(NA, nrow = n_boot,
+                     ncol = nrow(coef_matrix))
+
+colnames(boot_coefs) <- rownames(coef_matrix)
+
+for (i in seq_len(n_boot)) {
+  idx     <- sample(nrow(x_dat), replace = TRUE)
+  X_boot  <- x_dat[idx, ]
+  y_boot  <- y_dat[idx]
+  fit_b   <- glmnet(X_boot, y_boot, alpha = 0,
+                    lambda = ridge_cv$lambda.min)
+  boot_coefs[i, ] <- as.vector(coef(fit_b))  # drop intercept
+}
+
+coef_summary <- data.frame(
+  Predictor = rownames(coef_matrix),
+  Estimate  = as.vector(coef(ridge_cv, s = "lambda.min")),
+  Lower     = apply(boot_coefs, 2, quantile, 0.025),
+  Upper     = apply(boot_coefs, 2, quantile, 0.975)
+) %>%
+  mutate(
+    Predictor = recode(Predictor,
+                       niveau_vie_z             = "Median living standard",
+                       intensite_pauvrete_pct_z = "Poverty intensity",
+                       pct_non_scol_z           = "Low educational attainment",
+                       log_dens_z               = "Population density (log)"
+    ),
+    # Order by estimate magnitude for readability
+    Predictor = reorder(Predictor, Estimate)
+  )
+
+saveRDS(coef_summary, "./data/derived/06_ridge_coeff_boots.RDS")
 
 # BYM2 model --------------------------------------------------------------
 # Prepare data for INLA

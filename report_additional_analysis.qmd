@@ -4,7 +4,7 @@ author: "Susy Echeverria Londono"
 date: today
 format:
   pdf:
-    toc: true
+    toc: false
 execute:
   echo: true
   warning: false
@@ -16,6 +16,7 @@ execute:
 #| include: false
 
 library(tidyverse)
+library(broom)
 library(sf)
 library(readr)
 library(here)
@@ -24,6 +25,10 @@ library(patchwork)
 library(knitr)
 library(kableExtra)
 library(stargazer)
+library(INLA) # Bayesian spatial models (BYM2)
+library(regclass)
+library(spatialreg)
+library(glmnet)
 
 theme_set(theme_minimal(base_size = 12))
 
@@ -43,19 +48,26 @@ This analysis examined the geographic distribution of sepsis hospitalisation rat
 
 For this analysis, I am focusing on metropolitan France + Corse only (n = 13 regions) to avoid the confounding influence of overseas territories, which have very different healthcare contexts and sepsis epidemiology.
 
+# Spatial clustering
+## Global spatial clustering (Moran's I)
 
-# Spatial autocorrelation diagnosis (Moran's I)
+```{r}
+#| include: false
+# echo = FALSE
+
+moran_mc <- readRDS("data/derived/06_moran_mc_result.RDS")
+```
+
 
 ```{r}
 # echo = FALSE
 
-moran_mc <- readRDS("data/derived/06_moran_mc_result.RDS")
-
-plot(moran_mc, main = "Moran's I permutation distribution (septic shock rate)")
+print(moran_mc)
 ```
 
+- Global Moran's I was positive (I = `{r} round(moran_mc$statistic[[1]],2)`), suggesting a weak tendency toward spatial clustering of sepsis hospitalisation rates, but this did not reach statistical significance (p = `{r} round(moran_mc$p.value, 2)`), likely reflecting the limited power of the test at the regional scale (n = 13). 
 
-Global Moran's I was positive (I = `{r} round(moran_mc$statistic[[1]],2)`), suggesting a weak tendency toward spatial clustering of sepsis hospitalisation rates, but this did not reach statistical significance (p = `{r} round(moran_mc$p.value, 2)`), likely reflecting the limited power of the test at the regional scale (n = 13). These results neither confirm nor rule out spatial autocorrelation.
+## Local spatial clustering (LISA)
 
 However, given the extraordinary population density and urban concentration of Ile-de-France, I am interested in exploring if Ile-de-France behaves as a driver of local clusters of low incidence of sepsis (healthcare spill-over) or as an outlier. To explore this, I am performing Local Moran's I (LISA) analysis. 
 
@@ -70,17 +82,16 @@ LISA_results %>%
 
 ```
 
+- Île-de-France appears in the LH quadrant of the Moran scatterplot — suggesting lower-than-average sepsis rates surrounded by higher-than-average neighbors — though this local pattern did not reach statistical significance (p > 0.05), likely reflecting the limited power of the test at the regional scale.
 
-Île-de-France appears in the LH quadrant of the Moran scatterplot — suggesting lower-than-average sepsis rates surrounded by higher-than-average neighbors — though this local pattern did not reach statistical significance (p > 0.05), likely reflecting the limited power of the test at the regional scale.
+- Pays de la Loire is the only statistically significant cluster (p = 0.034) — a genuine LL cluster, meaning low sepsis rates in a region surrounded by other low-rate regions (Bretagne, Normandie, Centre-Val de Loire). 
 
-Pays de la Loire is the only statistically significant cluster (p = 0.034) — a genuine LL cluster, meaning low sepsis rates in a region surrounded by other low-rate regions (Bretagne, Normandie, Centre-Val de Loire). This is a stable, locally coherent low-risk pocket in western France, which may reflect shared regional characteristics such as healthcare access, population health, or socioeconomic factors that warrant further investigation.
-
-Spatial autocorrelation test (Moran's I): with n = 13 regions, this test has low statistical power. A non-significant result does NOT prove the absence of spatial structure — it may simply reflect insufficient data to detect moderate autocorrelation.
+- It is important to note that this spatial autocorrelation test (Moran's I) with n = 13 regions has low statistical power, therefore, the results of this analysis does NOT prove the absence of spatial structure — it may simply reflect insufficient data to detect moderate autocorrelation.
 
 
 # Links between sepsis hospitalisation rates and INSEE territorial indicators. 
 
-To examine the relationship between regional sepsis hospitalisation rates and socioeconomic indicators from INSEE, I applied a sequential modelling approach of increasing complexity. I first used Ordinary Least Squares (OLS) regression as a baseline
+To examine the relationship between regional sepsis hospitalisation rates and socioeconomic predictors, I applied a sequential modelling approach of increasing complexity. I first used Ordinary Least Squares (OLS) regression as a baseline
 
 ## Ordinary Least Squares (OLS) regression
 
@@ -89,12 +100,58 @@ To examine the relationship between regional sepsis hospitalisation rates and so
 #| echo: false
 
 ols_model <- readRDS("data/derived/06_ols_model.RDS")
+
 stargazer(ols_model, type="text", title="Results", align=TRUE)
 
 ```
 
+```{r}
+#| echo: false
 
-OLS regression revealed no significant association between regional socioeconomic indicators and sepsis hospitalisation rates (F(4,8) = 0.96, p = 0.48; adjusted R² = −0.01). Severe collinearity between population density and low educational attainment (r = −0.91) inflated standard errors for individual coefficients. I therefore use the Ridge regression to assess whether coefficient stabilisation under penalisation would recover any meaningful signal.
+coef_df <- 
+  tidy(ols_model, conf.int = TRUE, conf.level = 0.95) %>%
+  filter(term != "(Intercept)") %>%
+  mutate(
+    term = recode(term,
+      niveau_vie_z             = "Median living standard",
+      intensite_pauvrete_pct_z = "Poverty intensity",
+      pct_non_scol_z           = "Low educational attainment",
+      log_dens_z               = "Population density (log)"
+    ),
+    term      = reorder(term, estimate),
+    Sig       = ifelse(p.value < 0.05, "p < 0.05", "p ≥ 0.05")
+  )
+
+p1 <- ggplot(coef_df, aes(x = estimate, y = term, colour = Sig)) +
+  geom_vline(xintercept = 0,
+             linetype = "dashed", colour = "grey60", linewidth = 0.6) +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high),
+                 height = 0.2, linewidth = 0.8) +
+  geom_point(size = 3) +
+  scale_colour_manual(
+    values = c("p < 0.05" = "firebrick", "p ≥ 0.05" = "steelblue")
+  ) +
+  labs(
+    title    = "OLS regression coefficients",
+    subtitle = "Error bars are 95% confidence intervals",
+    x        = "Coefficient (hospitalisation rate per 100k, per 1 SD)",
+    y        = NULL,
+    colour   = NULL
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title       = element_text(face = "bold", size = 13),
+    plot.subtitle    = element_text(colour = "grey50", size = 10),
+    legend.position  = "bottom",
+    panel.grid.minor = element_blank(),
+    axis.text.y      = element_text(size = 11)
+  )
+
+```
+
+- OLS regression revealed no significant association between regional socioeconomic indicators and sepsis hospitalisation rates (F(4,8) = 0.96, p = 0.48; adjusted R² = −0.01). 
+
+- Severe collinearity between population density and low educational attainment (r = −0.91) inflated standard errors for individual coefficients. I therefore use the Ridge regression to assess whether coefficient stabilisation under penalisation would recover any meaningful signal.
 
 ## Ridge regression
 
@@ -102,11 +159,56 @@ OLS regression revealed no significant association between regional socioeconomi
 #| echo: false
 
 ridge_model <- readRDS("data/derived/06_ridge_model.RDS")
-
-coef(ridge_cv, s = "lambda.min")
 ```
 
-Ridge regression with cross-validated penalty (λ = 2630) shrunk all coefficients to near zero, confirming that the weak OLS signal was not an artefact of multicollinearity. Even after stabilising the coefficient estimates, socioeconomic indicators collectively explained negligible variation in regional sepsis hospitalisation rates. The direction of economic predictors (income negative, poverty positive) was consistent with expectation, but the magnitudes were too small to support substantive conclusions. Population density and low educational attainment showed no independent association with sepsis rates even after their collinearity was addressed.
+```{r}
+#| echo: false
+coef(ridge_model, s = "lambda.min")
+
+best_lambda <- ridge_model$lambda.min
+cat("Best lambda:", best_lambda)
+```
+
+```{r}
+#| echo: false
+
+coef_summary <- readRDS("./06_ridge_coeff_boots.RDS")
+
+n_boot = 200
+
+ggplot(coef_summary,
+             aes(x = Estimate, y = Predictor)) +
+  geom_vline(xintercept = 0,
+             linetype = "dashed", colour = "grey60", linewidth = 0.6) +
+  geom_errorbarh(aes(xmin = Lower, xmax = Upper),
+                 height = 0.2, colour = "steelblue", linewidth = 0.8) +
+  geom_point(size = 3, colour = "steelblue") +
+  labs(
+    title    = "Ridge regression coefficients at optimal λ",
+    subtitle = paste0(
+      "λ = ", round(ridge_model$lambda.min, 1),
+      " — error bars are bootstrap 95% intervals (", n_boot, " resamples)"
+    ),
+    x = "Coefficient",
+    y = NULL
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title       = element_text(face = "bold", size = 13),
+    plot.subtitle    = element_text(colour = "grey50", size = 10),
+    panel.grid.minor = element_blank(),
+    axis.text.y      = element_text(size = 11)
+  )
+```
+
+
+- Ridge regression with cross-validated penalty ($\lambda$ = 2630) shrunk all coefficients to near zero, confirming that the weak OLS signal was not an artefact of multicollinearity. 
+
+- Even after stabilising the coefficient estimates, socioeconomic indicators collectively explained little variation in regional sepsis hospitalisation rates. 
+
+- The direction of economic predictors (income negative, poverty positive) is consistent with expectation, but the magnitudes are too small to support effects conclusions. 
+
+- Population density and low educational achievement showed no association with sepsis rates even after their collinearity was addressed.
 
 
 ## Bayesian hierarchical model (BYM2)
@@ -127,37 +229,173 @@ kable(
 ```
 
 
-Posterior credible intervals for all fixed effects spanned zero, consistent with OLS and Ridge results. 
-
 ```{r}
+#| echo: false
 bym2_model <- readRDS("data/derived/07_BYM2_model.RDS")
 
-print(bym2_main$summary.hyperpar)
+kable(
+  bym2_model$summary.hyperpar,
+  format    = "pipe", 
+  caption   = "BYM2 model — Posterior summaries of BYM2 model hyperparameters"
+)
 ```
 
-- The high precision of the spatial random effects (posterior mean = 41.5) indicated minimal residual regional heterogeneity after covariate adjustment. 
+```{r}
+#| echo: false
+# Extract marginals for each fixed effect
+fe_names <- rownames(bym2_model$summary.fixed)
+fe_names <- fe_names[fe_names != "(Intercept)"]
 
-- The spatial mixing parameter φ = 0.47 (95% CI: 0.04–0.95) was unidentifiable given the sample size, which shows any reliable partition of variance between spatially structured and unstructured components.
+fe_marginals <- lapply(fe_names, function(nm) {
+  marg <- bym2_model$marginals.fixed[[nm]]
+  df   <- as.data.frame(marg)
+  names(df) <- c("x", "density")
+  df$Predictor <- nm
+  df
+})
+
+fe_df <- bind_rows(fe_marginals) %>%
+  mutate(
+    Predictor = recode(Predictor,
+                       niveau_vie_z             = "Median living standard",
+                       intensite_pauvrete_pct_z = "Poverty intensity",
+                       pct_non_scol_z           = "Low educational attainment",
+                       log_dens_z               = "Population density (log)"
+    ),
+    # Flag area under curve to left or right of zero
+    side = ifelse(x < 0, "negative", "positive")
+  )
+
+p4 <- ggplot(fe_df, aes(x = x, y = density)) +
+  geom_area(aes(fill = side), alpha = 0.4) +
+  geom_line(linewidth = 0.7, colour = "grey30") +
+  geom_vline(xintercept = 0,
+             linetype = "dashed", colour = "grey40", linewidth = 0.5) +
+  scale_fill_manual(
+    values = c("negative" = "#2166AC", "positive" = "#D6604D"),
+    guide  = "none"
+  ) +
+  facet_wrap(~ Predictor, scales = "free", ncol = 2) +
+  labs(
+    title    = "Posterior distributions of fixed effects — BYM2 model",
+    subtitle = "Blue = negative effect region; red = positive effect region.\nDashed line = null (log RR = 0)",
+    x        = "log Rate Ratio",
+    y        = "Posterior density"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title       = element_text(face = "bold", size = 13),
+    plot.subtitle    = element_text(colour = "grey50", size = 10),
+    panel.grid.minor = element_blank(),
+    strip.text       = element_text(face = "bold", size = 10)
+  )
+
+p4
+```
+
+- Posterior credible intervals for all fixed effects spanned zero, consistent with OLS and Ridge results. i.e., non significant association between the sepsis rate and socioeconomical predictors. 
+
+- The high precision of the spatial random effects (posterior mean = 41.5) indicated minimal residual regional heterogeneity after covariate adjustment. However, this modest variance detects regional differences on the rate ratio scale.
+
+- The spatial mixing parameter φ = 0.47 (95% CI: 0.04–0.95) was unidentifiable given the sample size, which shows any reliable partition of variance between spatially structured and unstructured components. i.e., we cannot conclude if geographical patterns are driven by spatial proximity or region-specific factors. 
+
+
+```{r}
+#| echo: false
+map_df <- readRDS("./data/derived/07_bym2_spatial.RDS")
+re_df <- readRDS("./data/derived/07_bym2_re.RDS")
+
+p2 <- ggplot(map_df) +
+  geom_sf(aes(fill = RR), colour = "white", linewidth = 0.3) +
+  scale_fill_gradient2(
+    low      = "#2166AC",   # blue = lower than average
+    mid      = "#F7F7F7",   # white = average
+    high     = "#D6604D",   # red = higher than average
+    midpoint = 1,
+    name     = "Posterior\nRR",
+    limits   = c(
+      floor(min(map_df$RR, na.rm = TRUE) * 10) / 10,
+      ceiling(max(map_df$RR, na.rm = TRUE) * 10) / 10
+    )
+  ) +
+  labs(
+    title    = "Posterior relative risk of sepsis hospitalisation",
+    subtitle = "BYM2 model — metropolitan France. RR > 1 (red) = above average; RR < 1 (blue) = below average",
+    caption  = "Overseas territories excluded. Spatial weights: queen contiguity."
+  ) +
+  theme_void(base_size = 11) +
+  theme(
+    plot.title    = element_text(face = "bold", size = 13),
+    plot.subtitle = element_text(colour = "grey50", size = 10),
+    plot.caption  = element_text(colour = "grey60", size = 8),
+    legend.position = "right"
+  )
+
+p2 
+
+```
+
+
+```{r}
+#| echo: false
+re_plot_df <- re_df %>%
+  mutate(
+    region_name = reorder(region_name, RR),
+    sig = case_when(
+      RR_lower > 1 ~ "Above average",
+      RR_upper < 1 ~ "Below average",
+      TRUE         ~ "Inconclusive"
+    )
+  )
+
+p3 <- ggplot(re_plot_df,
+             aes(x = RR, y = region_name, colour = sig)) +
+  geom_vline(xintercept = 1,
+             linetype = "dashed", colour = "grey50", linewidth = 0.6) +
+  geom_errorbarh(aes(xmin = RR_lower, xmax = RR_upper),
+                 height = 0.3, linewidth = 0.7) +
+  geom_point(size = 3) +
+  scale_colour_manual(
+    values = c(
+      "Above average" = "#D6604D",
+      "Below average" = "#2166AC",
+      "Inconclusive"  = "grey50"
+    )
+  ) +
+  labs(
+    title    = "Posterior relative risk by region — BYM2 model",
+    subtitle = "Points = posterior mean RR; bars = 95% credible intervals.\nDashed line = national average (RR = 1)",
+    x        = "Relative Risk",
+    y        = NULL,
+    colour   = NULL
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title       = element_text(face = "bold", size = 13),
+    plot.subtitle    = element_text(colour = "grey50", size = 10),
+    legend.position  = "bottom",
+    panel.grid.minor = element_blank(),
+    axis.text.y      = element_text(size = 10)
+  )
+
+p3 
+```
+
+- Even though minimal residual regional heterogeneity was found in the BYM2 model, Bourgogne-Franche-Comté and Grand Est showed posterior RRs credibly above the national average, reflecting raw sepsis rates sufficiently extreme to persist after Bayesian shrinkage toward the mean. Centre-Val de Loire is highlighted as the region with posterior RRs credibly below the national average. 
 
 
 # Model comparison
+
 ```{r}
 #| echo: false
 
-comparison_table <- readRDS("./data/derived/08_model_comparison_table.RDS")
-# For Word / Quarto output replace kable() call with:
-kable(comparison_table, format = "pipe",
-      col.names = c("Method", "Purpose", "Key Result"),
-      caption   = "Summary of analytical steps — spatial and regression analyses of regional sepsis hospitalisation rates in metropolitan France (n = 13 regions)")
-```
-## Conclusions
+comparison_table2<- read.csv("./outputs/tables/model_comparison_results.csv")
 
-1. Global Moran's I: Weak, inconclusive spatial clustering; limited power at n = 13.
-2. LISA: One localised low-rate cluster in western France (Pays de la Loire: LL cluster); no widespread spatial structure. 
-3. OLS Regression: No socioeconomic predictor significantly associated with sepsis rates
-4. LM Diagnostics: No residual spatial dependence; SEM/SLM not warranted. 
-5. Ridge Regression: Multicollinearity is not an explanation for weak fit of socioeconomic predictors. 
-6. BYM2 Model: Confirms null result under correct distributional assumptions; minimal residual regional heterogeneity. 
+kable(comparison_table2 %>% filter(Method != "LM Diagnostics"), format = "pipe",
+      caption   = "Summary of conclusions — spatial and regression analyses of regional sepsis hospitalisation rates in metropolitan France (n = 13 regions)")
+```
+
+## Main conclusions
 
 - Across all methods, the results converged on the same finding: no socioeconomic predictor showed a statistically or probabilistically credible association with regional sepsis hospitalisation rates.
 
@@ -165,29 +403,24 @@ kable(comparison_table, format = "pipe",
 
 - With only 13 observations, all models operated at the boundary of statistical identifiability, and even moderate true effects would have been undetectable given the available power. 
 
-- The observed variation in sepsis rates could reflect processes operating at a finer geographic scale, perhaps case-mix differences between sepsis subtypes, and commune or departemental level socioeconomic heterogeneity that is obscured by regional aggregation.
+- Bourgogne-Franche-Comté and Grand Est showed posterior RRs credibly above the national average. These regions show regional risk that deviate enough from the mean to be detectable even at this sample size. These findings reinforce the call for finer-scale analysis at the département level to understand the mechanisms underlying elevated risk in eastern France. 
 
-- Finer socioeconomic granularity would provide the statistical power necessary to detect and characterise the geographic drivers of sepsis hospitalisation in France.
+- Finer socioeconomic granularity would provide the statistical power necessary to detect and characterise the geographic drivers of sepsis hospitalisation in France. The observed variation in sepsis rates could reflect processes operating at a finer geographic scale, perhaps case-mix differences between sepsis subtypes, and commune or departemental level socioeconomic heterogeneity that is obscured by regional aggregation.
 
-
-
-# ANEX: spatial Residual diagnostics for OLS model
+# ANNEX:
 ```{r}
-#| echo: false
+#| eval: false
+#| include: false
+
+dat_sf <- readRDS("./data/derived/06_spatial_all_dat.RDS")
+ols_fit <- readRDS("./data/derived/06_ols_model.RDS")
 
 # Test residuals for spatial autocorrelation
-model_dat$resid <- residuals(ols_fit)
-
-# Attach geometry back
-shock_combined_resid <- 
-  dat_sf %>%
-  distinct(region_name, .keep_all = TRUE) %>%
-  left_join(model_dat %>% select(region_name, resid), by = "region_name")
-
+dat_sf$resid <- residuals(ols_fit)
 
 ## mapping residuals to check for spatial patterns in the residuals (which would suggest that the OLS model is missing spatially structured predictors or that a spatial model is needed)
 
-ggplot(shock_combined_resid) +
+ggplot(dat_sf) +
   geom_sf(aes(fill = resid)) +
   scale_fill_gradient2(
     low = "blue", mid = "white", high = "red",
@@ -198,3 +431,77 @@ ggplot(shock_combined_resid) +
        subtitle = "Red = higher than predicted, Blue = lower than predicted") +
   theme_minimal()
 ```
+
+
+```{r}
+#| echo: false
+# OLS vs Ridge coefficient comparison ----
+# directly shows shrinkage effect
+
+# Extract OLS coefficients
+ols_coefs <- tidy(ols_model, conf.int = TRUE) %>%
+  filter(term != "(Intercept)") %>%
+  select(term, estimate, conf.low, conf.high) %>%
+  mutate(Model = "OLS")
+
+# Extract Ridge coefficients at optimal lambda
+ridge_est <- as.data.frame(
+  as.matrix(coef(ridge_model, s = "lambda.min"))
+) %>%
+  rename(estimate = 1) %>%
+  filter(rownames(.) != "(Intercept)") %>%
+  mutate(
+    term      = rownames(.),
+    conf.low  = NA_real_,   # Ridge has no standard CIs
+    conf.high = NA_real_,
+    Model     = "Ridge"
+  )
+
+combined_coefs <- bind_rows(ols_coefs, ridge_est) %>%
+  mutate(
+    term = recode(term,
+      niveau_vie_z             = "Median living standard",
+      intensite_pauvrete_pct_z = "Poverty intensity",
+      pct_non_scol_z           = "Low educational attainment",
+      log_dens_z               = "Population density (log)"
+    ),
+    term = reorder(term, estimate)
+  )
+
+p4 <- ggplot(combined_coefs,
+             aes(x = estimate, y = term, colour = Model, shape = Model)) +
+  geom_vline(xintercept = 0,
+             linetype = "dashed", colour = "grey60", linewidth = 0.6) +
+  geom_errorbarh(
+    data = filter(combined_coefs, Model == "OLS"),
+    aes(xmin = conf.low, xmax = conf.high),
+    height = 0.15, linewidth = 0.8
+  ) +
+  geom_point(size = 3) +
+  scale_colour_manual(values = c("OLS" = "steelblue", "Ridge" = "firebrick")) +
+  scale_shape_manual(values  = c("OLS" = 16, "Ridge" = 17)) +
+  labs(
+    title    = "OLS vs Ridge regression coefficients",
+    subtitle = paste0(
+      "OLS: 95% confidence intervals shown. ",
+      "Ridge: λ = ", round(ridge_model$lambda.min, 1),
+      ", no intervals (shrinkage estimator)"
+    ),
+    x      = "Coefficient",
+    y      = NULL,
+    colour = NULL,
+    shape  = NULL
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title       = element_text(face = "bold", size = 13),
+    plot.subtitle    = element_text(colour = "grey50", size = 10),
+    legend.position  = "bottom",
+    panel.grid.minor = element_blank(),
+    axis.text.y      = element_text(size = 11)
+  )
+
+p4
+
+```
+

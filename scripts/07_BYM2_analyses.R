@@ -149,82 +149,258 @@ dat_sf$re_total      <- re_summary$mean[1:n_regions]
 dat_sf$re_structured <- re_summary$mean[(n_regions + 1):(2 * n_regions)]
 
 
+
+# ------------------------------------------------------------
+# EXTRACT POSTERIOR SUMMARIES FROM BYM2
+# ------------------------------------------------------------
+bym2_fit <- bym2_main
+
+# Fitted values (on the response scale — expected counts)
+fitted_df <- data.frame(
+  region_idx = seq_len(nrow(bym2_fit$summary.fitted.values)),
+  fitted_mean  = bym2_fit$summary.fitted.values$mean,
+  fitted_lower = bym2_fit$summary.fitted.values$`0.025quant`,
+  fitted_upper = bym2_fit$summary.fitted.values$`0.975quant`
+)
+
+# Random effects (BYM2 spatial + unstructured combined)
+re_df <- data.frame(
+  region_idx = seq_len(nrow(bym2_fit$summary.random$region_idx)),
+  re_mean    = bym2_fit$summary.random$region_idx$mean,
+  re_lower   = bym2_fit$summary.random$region_idx$`0.025quant`,
+  re_upper   = bym2_fit$summary.random$region_idx$`0.975quant`
+) %>%
+  # BYM2 returns 2*n rows: first n = combined, second n = spatial only
+  # Keep only first n rows (combined random effect)
+  slice(seq_len(nrow(shock_combined)))
+
+# Compute posterior relative risk per region
+# RR = exp(random effect) — deviation from overall mean
+re_df <- re_df %>%
+  mutate(
+    RR       = exp(re_mean),
+    RR_lower = exp(re_lower),
+    RR_upper = exp(re_upper),
+    # Exceedance probability: P(RR > 1) — computed from marginals
+    # Approximated here as proportion of CI above 0 on log scale
+    above_null = as.numeric(re_lower > 0)  # 1 if 95% CI excludes 0
+  )
+
+# Attach region names from your data
+re_df$region_name <- model_dat$region_name
+
+
+# Attach region names from your data
+re_df$region_name <- model_dat$region_name
+
+# Join to spatial object
+map_df <- 
+  model_dat %>%
+  left_join(re_df, by = c("region_name" = "region_name"))
+
+
+saveRDS(map_df, "./data/derived/07_bym2_spatial.RDS")
+saveRDS(re_df, "./data/derived/07_bym2_re.RDS")
+
 ## VISUALISATION -------------------------------------------------------
+# ------------------------------------------------------------
+# PLOT 1 — Choropleth map of posterior RR
+# THE standard plot in disease mapping papers
+# ------------------------------------------------------------
 
-## Map: observed vs. smoothed septic shock rate -----------------------
-
-p_obs <- ggplot(dat_sf) +
-  geom_sf(aes(fill = tx_sejours_sepsis_100k), colour = "white", linewidth = 0.3) +
-  scale_fill_viridis_c(
-    name   = "Rate\n(per 100k)",
-    option = "plasma",
-    direction = -1
+p1 <- ggplot(map_df) +
+  geom_sf(aes(fill = RR), colour = "white", linewidth = 0.3) +
+  scale_fill_gradient2(
+    low      = "#2166AC",   # blue = lower than average
+    mid      = "#F7F7F7",   # white = average
+    high     = "#D6604D",   # red = higher than average
+    midpoint = 1,
+    name     = "Posterior\nRR",
+    limits   = c(
+      floor(min(map_df$RR, na.rm = TRUE) * 10) / 10,
+      ceiling(max(map_df$RR, na.rm = TRUE) * 10) / 10
+    )
   ) +
-  labs(title = "Observed septic shock rate") +
-  theme_void(base_size = 11) +
-  theme(legend.position = "right")
-
-p_smooth <- ggplot(dat_sf) +
-  geom_sf(aes(fill = fitted_rate), colour = "white", linewidth = 0.3) +
-  scale_fill_viridis_c(
-    name   = "Rate\n(per 100k)",
-    option = "plasma",
-    direction = -1
+  labs(
+    title    = "Posterior relative risk of sepsis hospitalisation",
+    subtitle = "BYM2 model — metropolitan France. RR > 1 (red) = above average; RR < 1 (blue) = below average",
+    caption  = "Overseas territories excluded. Spatial weights: queen contiguity."
   ) +
-  labs(title = "BYM2 smoothed rate (posterior mean)") +
   theme_void(base_size = 11) +
-  theme(legend.position = "right")
-
-p_obs + p_smooth +
-  plot_annotation(
-    title    = "Septic shock: observed vs. spatially smoothed rates",
-    subtitle = "Mainland France + Corse | Main analysis (IDF included)"
+  theme(
+    plot.title    = element_text(face = "bold", size = 13),
+    plot.subtitle = element_text(colour = "grey50", size = 10),
+    plot.caption  = element_text(colour = "grey60", size = 8),
+    legend.position = "right"
   )
 
 
-## Regions with positive values have unexplained excess risk that clusters
-## spatially — i.e. not explained by the three covariates.
 
-ggplot(dat_sf) +
-  geom_sf(aes(fill = re_structured), colour = "white", linewidth = 0.3) +
-  scale_fill_distiller(
-    palette  = "RdBu",
-    direction = -1,
-    name     = "Spatial RE\n(log scale)"
-  ) +
-  labs(
-    title    = "BYM2 structured spatial random effect",
-    subtitle = "Positive = residual excess; Negative = residual deficit"
-  ) +
-  theme_void(base_size = 11)
+# ------------------------------------------------------------
+# PLOT 2 — Exceedance probability map P(RR > 1)
+# Shows where risk is above average
+# ------------------------------------------------------------
 
-
-##Forest plot: fixed effects (Rate Ratios) ---------------------------
-
-fe_plot_dat <- data.frame(
-  predictor = rownames(fe_rr)[-1],  # remove intercept
-  RR        = fe_rr[-1, "RR"],
-  lo        = fe_rr[-1, "RR_lower95"],
-  hi        = fe_rr[-1, "RR_upper95"]
+# Compute P(RR > 1) = P(random effect > 0) from posterior marginals
+exceed_prob <- sapply(
+  seq_len(nrow(model_dat)),
+  function(i) {
+    marg <- bym2_fit$marginals.random$region_idx[[i]]
+    # inla.pmarginal gives P(x < threshold)
+    # P(x > 0) = 1 - P(x < 0)
+    1 - INLA::inla.pmarginal(0, marg)
+  }
 )
 
-## Clean predictor labels
-fe_plot_dat$predictor <- recode(fe_plot_dat$predictor,
-                                "niveau_vie_z"   = "Median living standard\n(1 SD increase, €/year)",
-                                "pct_non_scol_z" = "% pop. ≥15 not in education\n(1 SD increase)",
-                                "log_dens_z"     = "Population density (log)\n(1 SD increase)"
-)
+map_df$exceed_prob <- exceed_prob
 
-ggplot(fe_plot_dat, aes(x = RR, y = predictor)) +
-  geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
-  geom_errorbarh(aes(xmin = lo, xmax = hi), height = 0.15, linewidth = 0.8) +
-  geom_point(size = 3, colour = "#2166ac") +
-  scale_x_log10(breaks = c(0.7, 0.85, 1, 1.15, 1.3)) +
-  labs(
-    title    = "BYM2 fixed effects: Rate Ratios for septic shock",
-    subtitle = "Posterior mean + 95% credible intervals | Main analysis (IDF included)",
-    x        = "Rate Ratio (log scale)",
-    y        = NULL
+p2 <- ggplot(map_df) +
+  geom_sf(aes(fill = exceed_prob), colour = "white", linewidth = 0.3) +
+  scale_fill_gradient(
+    low  = "#F7F7F7",
+    high = "#D6604D",
+    name = "P(RR > 1)",
+    limits = c(0, 1),
+    breaks = c(0, 0.25, 0.5, 0.75, 0.8, 0.95, 1)
   ) +
-  theme_bw(base_size = 11)
+  # Add hatching for regions where P(RR>1) > 0.8
+  geom_sf(
+    data   = filter(map_df, exceed_prob > 0.8),
+    fill   = NA,
+    colour = "grey30",
+    linewidth = 0.8,
+    linetype  = "solid"
+  ) +
+  labs(
+    title    = "Posterior exceedance probability P(RR > 1)",
+    subtitle = "BYM2 model — probability that a region's sepsis rate exceeds the national average.\nBold borders = P(RR > 1) > 0.80",
+    caption  = "Overseas territories excluded."
+  ) +
+  theme_void(base_size = 11) +
+  theme(
+    plot.title    = element_text(face = "bold", size = 13),
+    plot.subtitle = element_text(colour = "grey50", size = 10),
+    plot.caption  = element_text(colour = "grey60", size = 8),
+    legend.position = "right"
+  )
 
+
+# ------------------------------------------------------------
+# PLOT 3 — Caterpillar plot of posterior RR by region
+# Shows all regions ranked by RR with uncertainty intervals
+# ------------------------------------------------------------
+
+re_plot_df <- re_df %>%
+  mutate(
+    region_name = reorder(region_name, RR),
+    sig = case_when(
+      RR_lower > 1 ~ "Above average",
+      RR_upper < 1 ~ "Below average",
+      TRUE         ~ "Inconclusive"
+    )
+  )
+
+p3 <- ggplot(re_plot_df,
+             aes(x = RR, y = region_name, colour = sig)) +
+  geom_vline(xintercept = 1,
+             linetype = "dashed", colour = "grey50", linewidth = 0.6) +
+  geom_errorbarh(aes(xmin = RR_lower, xmax = RR_upper),
+                 height = 0.3, linewidth = 0.7) +
+  geom_point(size = 3) +
+  scale_colour_manual(
+    values = c(
+      "Above average" = "#D6604D",
+      "Below average" = "#2166AC",
+      "Inconclusive"  = "grey50"
+    )
+  ) +
+  labs(
+    title    = "Posterior relative risk by region — BYM2 model",
+    subtitle = "Points = posterior mean RR; bars = 95% credible intervals.\nDashed line = national average (RR = 1)",
+    x        = "Relative Risk",
+    y        = NULL,
+    colour   = NULL
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title       = element_text(face = "bold", size = 13),
+    plot.subtitle    = element_text(colour = "grey50", size = 10),
+    legend.position  = "bottom",
+    panel.grid.minor = element_blank(),
+    axis.text.y      = element_text(size = 10)
+  )
+
+
+
+# ------------------------------------------------------------
+# PLOT 4 — Posterior distributions of fixed effects
+# Shows full uncertainty for each predictor — Bayesian equivalent
+# of the OLS/Ridge coefficient forest plot
+# ------------------------------------------------------------
+
+# Extract marginals for each fixed effect
+fe_names <- rownames(bym2_main$summary.fixed)
+fe_names <- fe_names[fe_names != "(Intercept)"]
+
+fe_marginals <- lapply(fe_names, function(nm) {
+  marg <- bym2_fit$marginals.fixed[[nm]]
+  df   <- as.data.frame(marg)
+  names(df) <- c("x", "density")
+  df$Predictor <- nm
+  df
+})
+
+fe_df <- bind_rows(fe_marginals) %>%
+  mutate(
+    Predictor = recode(Predictor,
+                       niveau_vie_z             = "Median living standard",
+                       intensite_pauvrete_pct_z = "Poverty intensity",
+                       pct_non_scol_z           = "Low educational attainment",
+                       log_dens_z               = "Population density (log)"
+    ),
+    # Flag area under curve to left or right of zero
+    side = ifelse(x < 0, "negative", "positive")
+  )
+
+p4 <- ggplot(fe_df, aes(x = x, y = density)) +
+  geom_area(aes(fill = side), alpha = 0.4) +
+  geom_line(linewidth = 0.7, colour = "grey30") +
+  geom_vline(xintercept = 0,
+             linetype = "dashed", colour = "grey40", linewidth = 0.5) +
+  scale_fill_manual(
+    values = c("negative" = "#2166AC", "positive" = "#D6604D"),
+    guide  = "none"
+  ) +
+  facet_wrap(~ Predictor, scales = "free", ncol = 2) +
+  labs(
+    title    = "Posterior distributions of fixed effects — BYM2 model",
+    subtitle = "Blue = negative effect region; red = positive effect region.\nDashed line = null (log RR = 0)",
+    x        = "log Rate Ratio",
+    y        = "Posterior density"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title       = element_text(face = "bold", size = 13),
+    plot.subtitle    = element_text(colour = "grey50", size = 10),
+    panel.grid.minor = element_blank(),
+    strip.text       = element_text(face = "bold", size = 10)
+  )
+
+
+# ------------------------------------------------------------
+# SAVE ALL PLOTS
+# ------------------------------------------------------------
+ggsave("./outputs/figures/bym2_rr_map.png",
+       plot = p1, width = 8, height = 7, dpi = 150)
+
+ggsave("./outputs/figures/bym2_exceedance_map.png",
+       plot = p2, width = 8, height = 7, dpi = 150)
+
+ggsave("./outputs/figures/bym2_caterpillar.png",
+       plot = p3, width = 7, height = 5, dpi = 150)
+
+ggsave("./outputs/figures/bym2_posterior_fe.png",
+       plot = p4, width = 8, height = 6, dpi = 150)
+
+ggsave("./outputs/figures/bym2_combined_maps.png",
+       plot = combined_map, width = 14, height = 7, dpi = 150)

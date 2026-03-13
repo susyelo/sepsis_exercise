@@ -39,14 +39,9 @@ knitr::opts_chunk$set(
 
 # Introduction
 
-To better characterise the links between regional sepsis incidence and the selected INSEE territorial indicators, I am performing two complementary analytical approaches in this report: 
+This analysis examined the geographic distribution of sepsis hospitalisation rates across French regions and investigated whether regional socioeconomic conditions — median living standard, poverty intensity, population density, and educational attainment — could explain the observed variation. A sequential analytical strategy was applied, moving from spatial exploratory analysis through frequentist regression to Bayesian hierarchical modelling, with each step designed to address a specific alternative explanation for the results of the previous one.
 
-
-Stage 1 — Spatial autocorrelation diagnosis (Moran's I) + OLS + SAR/SEM on metropolitan France only. 
-
-Stage 2 — Regularized regression (Ridge/LASSO) to understand which INSEE indicators matter most.
-
-For these two approaches, I am focusing on metropolitan France + Corse only (n = 13 regions) to avoid the confounding influence of overseas territories, which have very different healthcare contexts and sepsis epidemiology.
+For this analysis, I am focusing on metropolitan France + Corse only (n = 13 regions) to avoid the confounding influence of overseas territories, which have very different healthcare contexts and sepsis epidemiology.
 
 
 # Spatial autocorrelation diagnosis (Moran's I)
@@ -119,19 +114,70 @@ Ridge regression with cross-validated penalty (λ = 2630) shrunk all coefficient
 Given the small number of regions (n = 13) and the count-derived nature of the outcome -- number of hospitalisations, I performed a Bayesian hierarchical model (BYM2) as a complementary analysis using R-INLA. This approach provides posterior risk estimates for each region with full uncertainty quantification, and accommodates the Poisson data-generating process more appropriately than OLS. 
 
 ```{r}
+#| echo: false
 
+BYM2_model_res <- readRDS("./data/derived/07_BYM2_model_results.RDS")
+
+kable(
+  BYM2_model_res,
+  format    = "pipe",
+  col.names = c("Predictor", "Mean (log RR)", "95% Credible Interval", "Rate Ratio"),
+  caption   = "BYM2 model — fixed effects on regional sepsis hospitalisation rates"
+)
 ```
 
 
+Posterior credible intervals for all fixed effects spanned zero, consistent with OLS and Ridge results. 
 
-# ANEXA: spatial Residual diagnostics for OLS model
+```{r}
+bym2_model <- readRDS("data/derived/07_BYM2_model.RDS")
+
+print(bym2_main$summary.hyperpar)
+```
+
+- The high precision of the spatial random effects (posterior mean = 41.5) indicated minimal residual regional heterogeneity after covariate adjustment. 
+
+- The spatial mixing parameter φ = 0.47 (95% CI: 0.04–0.95) was unidentifiable given the sample size, which shows any reliable partition of variance between spatially structured and unstructured components.
+
+
+# Model comparison
+```{r}
+#| echo: false
+
+comparison_table <- readRDS("./data/derived/08_model_comparison_table.RDS")
+# For Word / Quarto output replace kable() call with:
+kable(comparison_table, format = "pipe",
+      col.names = c("Method", "Purpose", "Key Result"),
+      caption   = "Summary of analytical steps — spatial and regression analyses of regional sepsis hospitalisation rates in metropolitan France (n = 13 regions)")
+```
+## Conclusions
+
+1. Global Moran's I: Weak, inconclusive spatial clustering; limited power at n = 13.
+2. LISA: One localised low-rate cluster in western France (Pays de la Loire: LL cluster); no widespread spatial structure. 
+3. OLS Regression: No socioeconomic predictor significantly associated with sepsis rates
+4. LM Diagnostics: No residual spatial dependence; SEM/SLM not warranted. 
+5. Ridge Regression: Multicollinearity is not an explanation for weak fit of socioeconomic predictors. 
+6. BYM2 Model: Confirms null result under correct distributional assumptions; minimal residual regional heterogeneity. 
+
+- Across all methods, the results converged on the same finding: no socioeconomic predictor showed a statistically or probabilistically credible association with regional sepsis hospitalisation rates.
+
+- These results should not be interpreted as evidence that socioeconomic conditions are irrelevant to sepsis outcomes in France. The administrative regional scale is too coarse to detect the mechanisms through which poverty, education, and urbanisation influence sepsis rates. 
+
+- With only 13 observations, all models operated at the boundary of statistical identifiability, and even moderate true effects would have been undetectable given the available power. 
+
+- The observed variation in sepsis rates could reflect processes operating at a finer geographic scale, perhaps case-mix differences between sepsis subtypes, and commune or departemental level socioeconomic heterogeneity that is obscured by regional aggregation.
+
+- Finer socioeconomic granularity would provide the statistical power necessary to detect and characterise the geographic drivers of sepsis hospitalisation in France.
+
+
+
+# ANEX: spatial Residual diagnostics for OLS model
 ```{r}
 #| echo: false
 
 # Test residuals for spatial autocorrelation
 model_dat$resid <- residuals(ols_fit)
 
- 
 # Attach geometry back
 shock_combined_resid <- 
   dat_sf %>%
@@ -151,9 +197,4 @@ ggplot(shock_combined_resid) +
   labs(title = "OLS Residuals — Sepsis hospitalisation rate",
        subtitle = "Red = higher than predicted, Blue = lower than predicted") +
   theme_minimal()
-
-
-moran.test(model_dat$resid, w_listw)
-
-
 ```

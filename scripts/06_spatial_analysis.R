@@ -86,6 +86,7 @@ dat_main_ordered <- shock_combined |> arrange(region_name)
 nb_queen <- poly2nb(dat_sf, queen = TRUE)
 
 
+
 ## Corse has no land border with the mainland. poly2nb() will return it as
 ## an isolate (zero neighbours), which breaks the ICAR model.
 ## We assign its nearest mainland neighbour by geographic proximity.
@@ -110,6 +111,10 @@ w_listw <- nb2listw(nb_queen, style = "W")
 ### Save adjacency graph for INLA (binary, not row-standardised)
 nb2INLA("./data/derived/06_france_regions_nb.graph", nb_queen)
 g_inla <- inla.read.graph("./data/derived/06_france_regions_nb.graph")
+
+## save data
+saveRDS(w_listw, "./data/derived/06_w_listw.RDS")
+saveRDS(dat_sf, "./data/derived/06_spatial_all_dat.RDS")
 
 
 ## MORAN'S I -----------------------------------------------------------
@@ -204,10 +209,11 @@ saveRDS(ols_fit, "./data/derived/06_ols_model.RDS")
 
 
 # fitting SEM model -------------------------------------------------------
-lm.RStests(ols_fit, listw = w_listw, test = "all")
+lm_tests <- lm.RStests(ols_fit, listw = w_listw, test = "all")
+saveRDS(lm_tests, "./data/derived/06_lm_tests.RDS")
 
 sem_fit <- 
-  errorsarlm(tx_sejours_sepsis_100k ~ niveau_vie_z +  log_dens_z + pct_non_scol_z + intensite_pauvrete_pct_z, data = model_dat, listw = w_listw)
+  errorsarlm(tx_sejours_sepsis_100k ~ niveau_vie_z +  log_dens_z + pct_non_scol_z + intensite_pauvrete_pct_z, data = dat_sf, listw = w_listw)
 
 summary(sem_fit)
 
